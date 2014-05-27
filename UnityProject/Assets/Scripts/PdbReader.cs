@@ -27,7 +27,9 @@ public static class PdbReader
 		van_der_waals["ZN"]=1.148f;
 		van_der_waals["I"]=1.748f;	
 		
-		string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Mathieu\Desktop\mathieu\Tesselation\UnityProject\Assets\Mol\p3.pdb");
+		//string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Mathieu\Desktop\mathieu\Tesselation\UnityProject\Assets\Mol\p3.pdb");
+		string[] lines = System.IO.File.ReadAllLines(@"c:\Users\julius\workspace\mcell\Tesselation\UnityProject\Assets\Mol\p3.pdb");
+	
 		Debug.Log (@"C:\Users\Mathieu\Desktop\mathieu\Tesselation\UnityProject\Assets\Mol\p3.pdb");
 		foreach (string line in lines) 
 		{

@@ -169,7 +169,7 @@
 				
 				float4 FS (ds2gs input) : COLOR
 				{				
-					return float4(1,1,1,1);
+					return input.pos;
 				}
 				
 //				// Geometry Program
@@ -227,103 +227,56 @@
 //				}			
 			ENDCG
 		 }
-		 // Debug Pass
+		
+		
 		Pass
 		{
-			CGPROGRAM			
+			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma target 5.0
+			#include "UnityCG.cginc"
+
+			struct appdata {
+				float4 vertex : POSITION;
+				float2 texcoord : TEXCOORD0;
+			};
+
+			struct v2f {
+				float4 pos : SV_POSITION;
+				float2 uv : TEXCOORD0;
+			};
+
+			v2f vert (appdata v)
+			{
+				v2f o;
+				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				o.uv = v.texcoord;
+				return o;
+			}
+
+			sampler2D _MainTex;
 			
-				#include "UnityCG.cginc"
-				
-				#pragma only_renderers d3d11
-				#pragma target 5.0				
-				
-				#pragma vertex VS				
-				#pragma geometry GS			
-				#pragma fragment FS	
-							
-				float molScale;			
-				float spriteSize;	
-				float4 spriteColor;
-								
-				StructuredBuffer<float4> molPositions;
-				StructuredBuffer<float4> atomPositions;
-				
-				struct vs2gs
-				{
-					float4 pos : SV_POSITION;
-				};
-				
-				struct gs2fs
-				{
-					float4 pos : SV_POSITION;									
-					float3 normal : NORMAL;			
-					float2 tex0	: TEXCOORD0;
-				};
+			AppendStructuredBuffer<float4> atomBufferOutput : register(u1);
 
-				vs2gs VS(uint id : SV_VertexID, uint instance : SV_InstanceID)
-				{
-				    vs2gs output;
-				    
-				    output.pos = mul(UNITY_MATRIX_MV, molPositions[instance] + atomPositions[id] * molScale);
-				    
-				    return output;
-				}
-				
-				// Geometry Program
-				[maxvertexcount(4)]
-				void GS(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
-				{
-					gs2fs output;
-					
-					output.pos = input[0].pos + float4(  0.5,  0.5, 0, 0) * spriteSize;
-					output.pos = mul (UNITY_MATRIX_P, output.pos);
-					output.normal = float3(0.0f, 0.0f, -1.0f);
-					output.tex0 = float2(1.0f, 1.0f);
-					pointStream.Append(output);
-					
-					output.pos = input[0].pos + float4(  0.5, -0.5, 0, 0) * spriteSize;
-					output.pos = mul (UNITY_MATRIX_P, output.pos);
-					output.normal = float3(0.0f, 0.0f, -1.0f);
-					output.tex0 = float2(1.0f, 0.0f);
-					pointStream.Append(output);					
-					
-					output.pos = input[0].pos + float4( -0.5,  0.5, 0, 0) * spriteSize;
-					output.pos = mul (UNITY_MATRIX_P, output.pos);
-					output.normal = float3(0.0f, 0.0f, -1.0f);
-					output.tex0 = float2(0.0f, 1.0f);
-					pointStream.Append(output);
-					
-					output.pos = input[0].pos + float4( -0.5, -0.5, 0, 0) * spriteSize;
-					output.pos = mul (UNITY_MATRIX_P, output.pos);
-					output.normal = float3(0.0f, 0.0f, -1.0f);
-					output.tex0 = float2(0.0f, 0.0f);
-					pointStream.Append(output);					
-				}
-				
-				// Fragment Program
-				float4 FS (gs2fs input) : COLOR
-				{				
-					// Center the texture coordinate
-				    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
 
-				    // Get the distance from the center
-				    float mag = sqrt(dot(normal, normal));
-
-				    // If the distance is greater than 0 we discard the pixel
-				    if ((mag) > 1) discard;
-				
-					// Find the z value according to the sphere equation
-				    normal.z = sqrt(1.0-mag);
-					normal = normalize(normal);
-				
-					// Lambert shading
-					float3 light = float3(0, 0, 1);
-					float ndotl = max( 0.0, dot(light, normal));	
-				
-					return spriteColor * ndotl;
+			fixed4 frag (v2f i) : COLOR0
+			{
+				fixed4 c = tex2D (_MainTex, i.uv);
+				[branch]
+				if (c.w > 0.0)
+				{
+					atomBufferOutput.Append (c);
+					discard;
 				}
-			ENDCG	
+				//discard;
+				return fixed4(0,0,0,0);
+			}
+			ENDCG
 		}
+
 	}
 	Fallback Off
 } 
