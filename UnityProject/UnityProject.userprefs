@@ -1,10 +1,12 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="MonoDevelop.Default" />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
   <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\MainScript.cs">
     <Files>
-      <File FileName="Assets\Scripts\MainScript.cs" Line="78" Column="3" />
-      <File FileName="Assets\Shaders\MolShader.shader" Line="11" Column="7" />
+      <File FileName="Assets\Standard Assets\Scripts\Camera Scripts\MouseOrbit.js" Line="1" Column="1" />
+      <File FileName="Assets\Scripts\MainScript.cs" Line="81" Column="57" />
+      <File FileName="Assets\Shaders\MolShader.shader" Line="38" Column="18" />
       <File FileName="Assets\Scripts\PdbReader.cs" Line="1" Column="1" />
+      <File FileName="Assets\Standard Assets\Scripts\Camera Scripts\MouseOrbit.js" Line="34" Column="32" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

@@ -12,7 +12,8 @@ private var y = 0.0;
 
 @script AddComponentMenu("Camera-Control/Mouse Orbit")
 
-function Start () {
+function Start () 
+{
     var angles = transform.eulerAngles;
     x = angles.y;
     y = angles.x;
@@ -20,10 +21,23 @@ function Start () {
 	// Make the rigid body not change rotation
    	if (rigidbody)
 		rigidbody.freezeRotation = true;
+		
+	x += Input.GetAxis("Mouse X") * xSpeed * 0.02;
+	y -= Input.GetAxis("Mouse Y") * ySpeed * 0.02;
+
+		y = ClampAngle(y, yMinLimit, yMaxLimit);
+	     
+	var rotation = Quaternion.Euler(y, x, 0);
+	var position = rotation * Vector3(0.0, 0.0, -distance) + target.position;
+
+	transform.rotation = rotation;
+	transform.position = position;
 }
 
-function LateUpdate () {
-    if (target) {
+function LateUpdate () 
+{
+    if (target && Input.GetKey ("space"))
+    {
         x += Input.GetAxis("Mouse X") * xSpeed * 0.02;
         y -= Input.GetAxis("Mouse Y") * ySpeed * 0.02;
  		
@@ -37,7 +51,8 @@ function LateUpdate () {
     }
 }
 
-static function ClampAngle (angle : float, min : float, max : float) {
+static function ClampAngle (angle : float, min : float, max : float)
+ {
 	if (angle < -360)
 		angle += 360;
 	if (angle > 360)
