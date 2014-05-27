@@ -60,45 +60,38 @@ public class MainScript : MonoBehaviour
 		renderTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
 		renderTexture.Create ();
 	}
-
-	// Quits the player when the user hits escape
-	void Update () 
-	{
-		if (Input.GetKey ("escape"))
-		{
-			Application.Quit();
-		}
-	}
 		
-	void OnPreRender()		
-	{	
+	void OnRenderObject() 
+	{
+		Graphics.SetRenderTarget (renderTexture);
 
-	}
+		GL.Clear(true, true, Color.black); 
 
-	void OnPostRender() 
-	{	
-//		molMaterial.SetPass(0);
-//		Graphics.DrawProcedural(MeshTopology.Points, atomCount, molCount);
-
-		molMaterial.SetPass(2);
+		molMaterial.SetPass(1);
 		Graphics.DrawProcedural(MeshTopology.Points, molCount);
+
+		RenderTexture.active = null;
 	}
+	
+	void OnRenderImage (RenderTexture src, RenderTexture dst)
+	{	
+		Graphics.Blit (renderTexture, dst); 
+	} 
 
-//	void OnRenderImage (RenderTexture src, RenderTexture dst)
-//	{	
-//		Graphics.SetRenderTarget (src);
-//		drawsomthing ();
-//
-//
-//		Graphics.Blit (src, dst);
-//	}
-
-	public void OnDisable()
+	void OnDisable()
 	{
 		if(molBuffer != null)
 			molBuffer.Dispose();
 		
 		if(atomBuffer != null)
 			atomBuffer.Dispose();
+	}
+
+	void Update () 
+	{
+		if (Input.GetKey ("escape"))
+		{
+			Application.Quit();
+		}
 	}
 }
