@@ -3,8 +3,8 @@
   <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Shaders\MolShader.shader">
     <Files>
       <File FileName="Assets\Editor\MainScriptEditor.cs" Line="34" Column="1" />
-      <File FileName="Assets\Scripts\MainScript.cs" Line="93" Column="40" />
-      <File FileName="Assets\Shaders\MolShader.shader" Line="271" Column="8" />
+      <File FileName="Assets\Scripts\MainScript.cs" Line="79" Column="6" />
+      <File FileName="Assets\Shaders\MolShader.shader" Line="260" Column="23" />
       <File FileName="Assets\Scripts\PdbReader.cs" Line="46" Column="39" />
     </Files>
   </MonoDevelop.Ide.Workbench>
