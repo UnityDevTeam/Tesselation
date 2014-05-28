@@ -6,9 +6,6 @@ using System.Collections.Generic;
 
 public class MyWindow : EditorWindow
 {	
-	//atom buffer
-	public ComputeBuffer atomBuffer;
-
 	// Add menu item named "My Window" to the Window menu
 	[MenuItem("CellUnity/Show Window")]
 	public static void ShowWindow()
@@ -19,15 +16,9 @@ public class MyWindow : EditorWindow
 	
 	void OnGUI()
 	{
-		if(GUILayout.Button ("Load MCell Scene")) 
+		if(GUILayout.Button ("Init Scene")) 
 		{
-			GameObject gameObject = GameObject.Find ("Main Object");
-			
-			if (gameObject != null)
-				GameObject.DestroyImmediate (gameObject);
-			
-			gameObject = new GameObject("Main Object");
-			gameObject.AddComponent<MainScript>();	
+
 		}
 	}
 }
