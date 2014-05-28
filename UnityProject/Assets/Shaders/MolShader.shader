@@ -226,8 +226,7 @@
 //					return spriteColor * ndotl;
 //				}			
 			ENDCG
-		 }
-		
+		}		
 		
 		Pass
 		{

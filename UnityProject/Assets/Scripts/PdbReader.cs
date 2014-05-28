@@ -27,10 +27,12 @@ public static class PdbReader
 		van_der_waals["ZN"]=1.148f;
 		van_der_waals["I"]=1.748f;	
 		
-		//string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Mathieu\Desktop\mathieu\Tesselation\UnityProject\Assets\Mol\p3.pdb");
-		string[] lines = System.IO.File.ReadAllLines(@"c:\Users\julius\workspace\mcell\Tesselation\UnityProject\Assets\Mol\p3.pdb");
+		string path = Application.dataPath + "/Mol/p3.pdb";
+
+		Debug.Log (path);
+
+		string[] lines = System.IO.File.ReadAllLines(path);
 	
-		Debug.Log (@"C:\Users\Mathieu\Desktop\mathieu\Tesselation\UnityProject\Assets\Mol\p3.pdb");
 		foreach (string line in lines) 
 		{
 			float defaultAtomSize = 1.5f;
@@ -74,7 +76,9 @@ public static class PdbReader
 		//molAtomStart.Add(molAtomPositionsAll.size());
 		//molAtomPositionsAll += molAtomPositions;
 		//molCount++;
-		
+
+		Debug.Log ("Atom count: " + molAtomPositions.Count);
+
 		return molAtomPositions;
 	}
 }
