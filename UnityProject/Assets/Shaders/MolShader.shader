@@ -2,7 +2,7 @@
 {
 	Properties
 	{
-		_MainTex ("", 2D) = "white" {}
+		_MainTex ("", 2D) = "white" {}		
 	}
 	SubShader 
 	{
@@ -94,27 +94,83 @@
 			#pragma only_renderers d3d11
 			#pragma target 5.0				
 			
-			#pragma vertex VS			
-			#pragma fragment FS	
+			#pragma vertex VS
+			#pragma fragment FS				
+			#pragma geometry GS	
 													
 			StructuredBuffer<float4> atomPositions;
 			
-			struct vs2fs
+			struct vs2gs
 			{
 				float4 pos : SV_POSITION;
 			};
-
-			vs2fs VS(uint id : SV_VertexID)
+			
+			struct gs2fs
 			{
-			    vs2fs output;					    
+				float4 pos : SV_POSITION;		
+				float2 tex0	: TEXCOORD0;
+			};
+
+			vs2gs VS(uint id : SV_VertexID)
+			{
+			    vs2gs output;					    
 			    output.pos = float4(atomPositions[id].xy * 2.0 - 1.0, 0, 1);			    
 			    return output;
 			}
 			
-			float4 FS (vs2fs input) : COLOR
-			{				
-				return float4(1,1,1,1);
+			[maxvertexcount(4)]
+			void GS(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
+			{
+				gs2fs output;
+				
+				float dx = 0.005; //_Size;
+				float dy = dx * _ScreenParams.x / _ScreenParams.y;
+				
+				output.pos = input[0].pos + float4( dx, dy, 0, 0);				
+				output.tex0 = float2(1.0f, 1.0f);
+				pointStream.Append(output);
+				
+				output.pos = input[0].pos + float4( dx, -dy, 0, 0);
+				output.tex0 = float2(1.0f, 0.0f);
+				pointStream.Append(output);					
+				
+				output.pos = input[0].pos + float4( -dx, dy, 0, 0);
+				output.tex0 = float2(0.0f, 1.0f);
+				pointStream.Append(output);
+				
+				output.pos = input[0].pos + float4( -dx, -dy, 0, 0);
+				output.tex0 = float2(0.0f, 0.0f);
+				pointStream.Append(output);					
 			}
+			
+			float4 FS (gs2fs input) : COLOR
+			{	
+				float4 spriteColor = float4(1,1,1,1);
+									
+				// Center the texture coordinate
+			    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
+
+			    // Get the distance from the center
+			    float mag = sqrt(dot(normal, normal));
+
+			    // If the distance is greater than 0 we discard the pixel
+			    if ((mag) > 1) discard;
+			
+				// Find the z value according to the sphere equation
+			    normal.z = sqrt(1.0-mag);
+				normal = normalize(normal);
+			
+				// Lambert shading
+				float3 light = float3(0, 0, 1);
+				float ndotl = max( 0.0, dot(light, normal));	
+			
+				return spriteColor * ndotl;
+			}			
+			
+//			float4 FS (vs2fs input) : COLOR
+//			{				
+//				return float4(1,1,1,1);
+//			}
 			
 			ENDCG					
 		}

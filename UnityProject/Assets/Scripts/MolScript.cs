@@ -75,6 +75,8 @@ public class MolScript : MonoBehaviour
 	
 	void OnPostRender()
 	{
+		print(SystemInfo.supportedRenderTargetCount);
+
 		CreateResources ();
 
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
