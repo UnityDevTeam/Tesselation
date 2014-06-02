@@ -1,49 +1,128 @@
 ﻿Shader "Custom/MolShader" 
 {
-	Properties 
+	Properties
 	{
-		molScale("Molecule Scale", Float) = 0.1
-		spriteSize("Sprite Size", Float) = 0.25
-	    spriteColor ("Sprite Color", Color) = (1,1,1,1)    
-	    _MainTex ("", 2D) = "white" {} 
+		_MainTex ("", 2D) = "white" {}
 	}
 	SubShader 
 	{
-		// Debug Pass		
+		Pass
+		{
+			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+
+			CGPROGRAM
+			
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma target 5.0
+			#include "UnityCG.cginc"
+
+			sampler2D _MainTex;
+			AppendStructuredBuffer<float4> pointBufferOutput : register(u1);
+
+			struct v2f
+			{
+				float4 pos : SV_POSITION;
+				float2 uv : TEXCOORD0;
+			};
+
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				o.uv = v.texcoord;
+				return o;
+			}			
+
+			float4 frag (v2f i) : COLOR0
+			{
+				float4 c = tex2D (_MainTex, i.uv);
+				
+				[branch]
+				if (c.w == 1)
+				{
+					pointBufferOutput.Append (float4(i.uv, 1, 1));
+				}
+				
+				discard;
+				return c;
+			}
+			
+			ENDCG
+		}
+
 		Pass
 		{	
-			CGPROGRAM			
-	    		
-				#include "UnityCG.cginc"
-				
-				#pragma only_renderers d3d11
-				#pragma target 5.0				
-				
-				#pragma vertex VS			
-				#pragma fragment FS	
-														
-				StructuredBuffer<float4> molPositions;
-				
-				struct vs2fs
-				{
-					float4 pos : SV_POSITION;
-				};
+			CGPROGRAM	
+					
+			#include "UnityCG.cginc"
+			
+			#pragma only_renderers d3d11
+			#pragma target 5.0				
+			
+			#pragma vertex VS			
+			#pragma fragment FS	
+													
+			StructuredBuffer<float4> molPositions;
+			
+			struct vs2fs
+			{
+				float4 pos : SV_POSITION;
+			};
 
-				vs2fs VS(uint id : SV_VertexID)
-				{
-				    vs2fs output;		   
-				    
-				    output.pos = mul(UNITY_MATRIX_MVP, molPositions[id]);
-				    
-				    return output;
-				}
-				
-				float4 FS (vs2fs input) : COLOR
-				{				
-					return float4(1,1,1,1);
-				}
+			vs2fs VS(uint id : SV_VertexID)
+			{
+			    vs2fs output;				    			    
+			    output.pos = mul(UNITY_MATRIX_MVP, molPositions[id]);				    
+			    return output;
+			}
+			
+			float4 FS (vs2fs input) : COLOR
+			{				
+				return float4(1,1,1,1);
+			}
+			
 			ENDCG					
 		}
+		
+		Pass
+		{		
+			CGPROGRAM	
+					
+			#include "UnityCG.cginc"
+			
+			#pragma only_renderers d3d11
+			#pragma target 5.0				
+			
+			#pragma vertex VS			
+			#pragma fragment FS	
+													
+			StructuredBuffer<float4> atomPositions;
+			
+			struct vs2fs
+			{
+				float4 pos : SV_POSITION;
+			};
+
+			vs2fs VS(uint id : SV_VertexID)
+			{
+			    vs2fs output;					    
+			    output.pos = float4(atomPositions[id].xy * 2.0 - 1.0, 0, 1);			    
+			    return output;
+			}
+			
+			float4 FS (vs2fs input) : COLOR
+			{				
+				return float4(1,1,1,1);
+			}
+			
+			ENDCG					
+		}
+
+	}
+	Fallback Off
+}
+
 	
 //		// Tesselation Pass
 //	    Pass 
@@ -225,50 +304,3 @@
 ////				}			
 //			ENDCG
 //		}		
-		
-		Pass
-		{
-			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
-
-			CGPROGRAM
-			#pragma vertex vert
-			#pragma fragment frag
-			#pragma target 5.0
-			#include "UnityCG.cginc"
-
-			struct appdata {
-				float4 vertex : POSITION;
-				float2 texcoord : TEXCOORD0;
-			};
-
-			struct v2f {
-				float4 pos : SV_POSITION;
-				float2 uv : TEXCOORD0;
-			};
-
-			v2f vert (appdata v)
-			{
-				v2f o;
-				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
-				o.uv = v.texcoord;
-				return o;
-			}
-
-			sampler2D _MainTex;
-			AppendStructuredBuffer<float2> pointBufferOutput : register(u1);
-
-			fixed4 frag (v2f i) : COLOR0
-			{
-				fixed4 c = tex2D (_MainTex, i.uv);
-//				[branch]
-//				if (c.x == 1)
-//				{
-//					pointBufferOutput.Append (c);
-//				}
-				return c;
-			}
-			ENDCG
-		}
-	}
-	Fallback Off
-} 

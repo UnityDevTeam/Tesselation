@@ -1,144 +1,115 @@
 using UnityEngine;
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-
+//[ExecuteInEditMode]
 public class MolScript : MonoBehaviour
 {
-	public int molCount = 100;
+	public int molCount = 100000;
+	public Shader shader;
 
-	private Material molMaterial;
-
-	private ComputeBuffer molBuffer;
-	private ComputeBuffer atomBuffer;
-	private ComputeBuffer atomBufferOutput;
-
+	private Material mat;
 	private RenderTexture renderTexture;
-
+		
+	private ComputeBuffer cbDrawArgs;
+	private ComputeBuffer cbPoints;
+	private ComputeBuffer cbMols;
+	
 	private void CreateResources ()
 	{
-		if (molBuffer == null)
+		if (cbDrawArgs == null)
+		{
+			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
+			var args = new int[4];
+			args[0] = 0;
+			args[1] = 1;
+			args[2] = 0;
+			args[3] = 0;
+			cbDrawArgs.SetData (args);
+		}
+		
+		if (cbMols == null)
 		{
 			Vector4[] molPositions = new Vector4[molCount];
 			
 			for (var i=0; i < molCount; i++)
 			{
-				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 100.0f, 
-				                    (UnityEngine.Random.value - 0.5f) * 100.0f,
-				                    (UnityEngine.Random.value - 0.5f) * 100.0f,
+				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
+				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
+				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
 				                    1);
 			}
 			
-			molBuffer = new ComputeBuffer (molPositions.Length, 16); 
-			molBuffer.SetData(molPositions);
+			cbMols = new ComputeBuffer (molPositions.Length, 16); 
+			cbMols.SetData(molPositions);
 		}
-
-		if (atomBuffer == null)
+		
+		if (cbPoints == null)
 		{
-			Vector4[] atomPositions = PdbReader.ReadPdbFileSimple().ToArray();
-			
-			atomBuffer = new ComputeBuffer (atomPositions.Length, 16); 
-			atomBuffer.SetData(atomPositions);
-		}
-
-		if (atomBufferOutput == null)
-		{
-			atomBufferOutput = new ComputeBuffer (1000000, 16, ComputeBufferType.Append);
-		}
-
-		if (molMaterial == null)
-		{
-			molMaterial = Resources.Load<Material> ("MolMaterial");		
-			
-			molMaterial.SetBuffer ("molPositions", molBuffer);
-			molMaterial.SetBuffer ("atomPositions", atomBuffer);
-			molMaterial.SetBuffer ("atomBufferOutput", atomBufferOutput);
+			cbPoints = new ComputeBuffer (Screen.width * Screen.height, 16, ComputeBufferType.Append);
 		}
 
 		if (renderTexture == null)
 		{
 			renderTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
+			renderTexture.Create();
 		}
-	}
-
-	private void ReleaseResources ()
-	{
-		if (molBuffer != null) 
-		{
-			molBuffer.Release ();
-			molBuffer = null;
-		}
-
-		if (atomBuffer != null) 
-		{
-			atomBuffer.Release ();
-			atomBuffer = null;
-		}
-		if(atomBufferOutput != null)
-		{
-			atomBufferOutput.Release();
-			atomBufferOutput = null;
-		}
-	}
 		
-	bool flag = false;
-
-	void OnRenderObject() 
-	{
-//		if (flag)
-//			return;
-//
-//		flag = true;
-
-		CreateResources ();
-
-//		Graphics.SetRenderTarget (renderTexture);
-
-		GL.Clear(true, true, Color.black); 
-		molMaterial.SetPass(0);
-		Graphics.DrawProcedural(MeshTopology.Points, molCount);
-
-//		RenderTexture.active = null;
-
-//		Graphics.SetRandomWriteTarget (1, atomBufferOutput);
-//		Graphics.Blit (renderTexture, molMaterial, 1);
-//		Graphics.ClearRandomWriteTargets (); 
-//
-//		using (var countBuffer = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect)) 
-//		{			
-//			ComputeBuffer.CopyCount (atomPosBuffer, countBuffer, 0);			
-//			var count = new int[4];			
-//			countBuffer.GetData (count);			
-//			Debug.Log ("Atom pos buffer size:" + count[0]);			
-//		}	
+		if (mat == null)
+		{
+			mat = new Material(shader);
+			mat.hideFlags = HideFlags.HideAndDontSave;
+		}
 	}
 	
-	void OnRenderImage (RenderTexture src, RenderTexture dst)
-	{	
-		Graphics.SetRandomWriteTarget (1, atomBufferOutput);
-		Graphics.Blit (src, dst, molMaterial, 1);
-		Graphics.ClearRandomWriteTargets (); 
-
-//		using (var countBuffer = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect)) 
-//		{			
-//			ComputeBuffer.CopyCount (atomBufferOutput, countBuffer, 0);			
-//			var count = new int[4];			
-//			countBuffer.GetData (count);			
-//			Debug.Log ("Atom pos buffer size:" + count[0]);			
-//		}	
-	} 
-
-	void OnDisable()
+	private void ReleaseResources ()
+	{
+		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
+		if (cbPoints != null) cbPoints.Release(); cbPoints = null;
+		if (cbMols != null) cbMols.Release(); cbMols = null;
+		Object.DestroyImmediate (mat);
+	}
+	
+	void OnDisable ()
 	{
 		ReleaseResources ();
 	}
-
-	void Update () 
+	
+	void OnPostRender()
 	{
-		if (Input.GetKey ("escape"))
+		CreateResources ();
+
+		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
+		mat.SetBuffer ("molPositions", cbMols);
+		mat.SetPass(1);
+		Graphics.DrawProcedural(MeshTopology.Points, molCount);
+	}
+
+	void OnRenderImage (RenderTexture src, RenderTexture dst)
+	{
+		if (!shader)
 		{
-			Application.Quit();
+			Debug.LogWarning ("No Shader set");
+			return;			
 		}
+		
+		if (!SystemInfo.supportsComputeShaders)
+		{
+			Debug.LogWarning ("Compute shaders not supported (not using DX11?)");
+			return;			
+		}
+	
+		Graphics.SetRandomWriteTarget (1, cbPoints);
+		Graphics.Blit (src, dst, mat, 0);
+		Graphics.ClearRandomWriteTargets ();
+
+		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
+//		var count = new int[4];			
+//		cbDrawArgs.GetData (count);			
+//		Debug.Log ("Atom pos buffer size:" + count[0]);	
+
+		Graphics.SetRenderTarget (dst);
+		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		mat.SetBuffer ("atomPositions", cbPoints);
+		mat.SetPass(2);
+		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 	}
 }
