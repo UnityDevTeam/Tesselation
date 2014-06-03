@@ -12,14 +12,16 @@ Shader "Custom/MolShader"
 
 			CGPROGRAM
 			
+			#include "UnityCG.cginc"
+				
+			#pragma only_renderers d3d11		
+			#pragma target 5.0
+			
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma target 5.0
-			#include "UnityCG.cginc"
 		
 			sampler2D _MainTex;
 			sampler2D _ColorTex;
-			sampler2D _DepthTex;
 			
 			AppendStructuredBuffer<float4> pointBufferOutput : register(u1);
 
@@ -40,12 +42,11 @@ Shader "Custom/MolShader"
 			float4 frag (v2f i) : COLOR0
 			{
 				float4 c = tex2D (_ColorTex, i.uv);
-				float d = tex2D (_DepthTex, i.uv).x;
 				
 				[branch]
-				if (d < 1)
+				if (c.w > 0)
 				{
-					pointBufferOutput.Append (float4(i.uv, d, 1));
+					pointBufferOutput.Append (c);
 				}
 				
 				discard;
@@ -72,18 +73,20 @@ Shader "Custom/MolShader"
 			struct vs2fs
 			{
 				float4 pos : SV_POSITION;
+				float4 worldPos : FLOAT4;
 			};
 
 			vs2fs VS(uint id : SV_VertexID)
 			{
-			    vs2fs output;				    			    
+			    vs2fs output;		
+			    output.worldPos = float4(molPositions[id].xyz, 1);	    			    
 			    output.pos = mul(UNITY_MATRIX_MVP, molPositions[id]);				    
 			    return output;
 			}
 			
 			float4 FS (vs2fs input) : COLOR
-			{				
-				return float4(1,1,1,1);
+			{					
+				return input.worldPos;
 			}
 			
 			ENDCG					
@@ -93,10 +96,7 @@ Shader "Custom/MolShader"
 		{		
 			CGPROGRAM	
 					
-			#include "UnityCG.cginc"
-			
-			#pragma only_renderers d3d11
-			#pragma target 5.0				
+			#include "UnityCG.cginc"		
 			
 			#pragma vertex VS
 			#pragma fragment FS				
@@ -124,16 +124,10 @@ Shader "Custom/MolShader"
 
 			vs2gs VS(uint id : SV_VertexID)
 			{			    	
-			    float4 atomInfo = atomPositions[id];		    
-			    float3 screenPos = atomInfo.xyz * 2.0 - 1.0;		
-			    
-			   	// Need to go back in MV space to find the right point sprite size	    
-			    float4 viewPos = mul (projectionMatrixInverse, float4(screenPos, 1.0));			    
-			    viewPos.xyz = viewPos.xyz / viewPos.w;
-			    viewPos.w = 1;
+			    float4 atomInfo = atomPositions[id];	
 			    
 			    vs2gs output;			    				    			    				    
-			    output.pos = float4(viewPos.xyz, 1);			    
+			    output.pos = mul (UNITY_MATRIX_MV, atomInfo);		    
 			    return output;
 			}
 			
@@ -143,7 +137,7 @@ Shader "Custom/MolShader"
 				gs2fs output;
 				
 				float dx = 0.05;
-				float dy = 0.05; //dx * _ScreenParams.x / _ScreenParams.y;
+				float dy = 0.05;
 								
 				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, dy, 0, 0));
 				output.tex0 = float2(1.0f, 1.0f);

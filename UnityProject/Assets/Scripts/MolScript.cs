@@ -9,8 +9,8 @@ public class MolScript : MonoBehaviour
 	private Material mat;
 
 	private RenderTexture colorTexture;
-	private RenderTexture depthTexture;
-		
+	private RenderTexture colorTexture2;	
+
 	private ComputeBuffer cbDrawArgs;
 	private ComputeBuffer cbPoints;
 	private ComputeBuffer cbMols;
@@ -51,14 +51,14 @@ public class MolScript : MonoBehaviour
 
 		if (colorTexture == null)
 		{
-			colorTexture = new RenderTexture (Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
+			colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
 			colorTexture.Create();
 		}
-		
-		if (depthTexture == null)
+
+		if (colorTexture2 == null)
 		{
-			depthTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.Depth);
-			depthTexture.Create();
+			colorTexture2 = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
+			colorTexture2.Create();
 		}
 		
 		if (mat == null)
@@ -74,8 +74,8 @@ public class MolScript : MonoBehaviour
 		if (cbPoints != null) cbPoints.Release(); cbPoints = null;
 		if (cbMols != null) cbMols.Release(); cbMols = null;
 
-		if (colorTexture != null) colorTexture.Release(); colorTexture = null;		
-		if (depthTexture != null) depthTexture.Release(); depthTexture = null;
+		if (colorTexture != null) colorTexture.Release(); colorTexture = null;
+		if (colorTexture2 != null) colorTexture2.Release(); colorTexture2 = null;	
 
 		Object.DestroyImmediate (mat);
 	}
@@ -89,38 +89,26 @@ public class MolScript : MonoBehaviour
 	{
 		CreateResources ();
 
-		Graphics.SetRenderTarget (colorTexture.colorBuffer, depthTexture.depthBuffer);
+		Graphics.SetRenderTarget (colorTexture);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
 		mat.SetBuffer ("molPositions", cbMols);
 		mat.SetPass(1);
 		Graphics.DrawProcedural(MeshTopology.Points, molCount);
+
+		mat.SetTexture ("_ColorTex", colorTexture);
+		
+		Graphics.SetRandomWriteTarget (1, cbPoints);
+		Graphics.Blit (colorTexture, colorTexture2, mat, 0);
+		Graphics.ClearRandomWriteTargets ();		
+		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
 	}
 
 	void OnRenderImage (RenderTexture src, RenderTexture dst)
 	{
-		mat.SetTexture ("_ColorTex", colorTexture);
-		mat.SetTexture ("_DepthTex", depthTexture);
-
-		Graphics.SetRandomWriteTarget (1, cbPoints);
-		Graphics.Blit (src, dst, mat, 0);
-		Graphics.ClearRandomWriteTargets ();
-
-		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
-
-		// Read the amount of atoms to draw // Time consuming !! Use carefully
-//		var count = new int[4];			
-//		cbDrawArgs.GetData (count);			
-//		Debug.Log ("Atom pos buffer size:" + count[0]);	
-
-		var projectionMatrixInverse = camera.projectionMatrix.inverse;
-
 		Graphics.SetRenderTarget (dst);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-
 		mat.SetBuffer ("atomPositions", cbPoints);
-		mat.SetMatrix ("projectionMatrixInverse", projectionMatrixInverse);
 		mat.SetPass(2);
-
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 	}
 }

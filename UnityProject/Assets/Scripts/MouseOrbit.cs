@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 public class MouseOrbit : MonoBehaviour
 {
 	public Vector3 target;
