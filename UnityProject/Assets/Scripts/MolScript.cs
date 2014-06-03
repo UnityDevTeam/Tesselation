@@ -7,7 +7,9 @@ public class MolScript : MonoBehaviour
 	public Shader shader;
 
 	private Material mat;
-	private RenderTexture renderTexture;
+
+	private RenderTexture colorTexture;
+	private RenderTexture depthTexture;
 		
 	private ComputeBuffer cbDrawArgs;
 	private ComputeBuffer cbPoints;
@@ -47,10 +49,16 @@ public class MolScript : MonoBehaviour
 			cbPoints = new ComputeBuffer (Screen.width * Screen.height, 16, ComputeBufferType.Append);
 		}
 
-		if (renderTexture == null)
+		if (colorTexture == null)
 		{
-			renderTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default);
-			renderTexture.Create();
+			colorTexture = new RenderTexture (Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
+			colorTexture.Create();
+		}
+		
+		if (depthTexture == null)
+		{
+			depthTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.Depth);
+			depthTexture.Create();
 		}
 		
 		if (mat == null)
@@ -65,6 +73,10 @@ public class MolScript : MonoBehaviour
 		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
 		if (cbPoints != null) cbPoints.Release(); cbPoints = null;
 		if (cbMols != null) cbMols.Release(); cbMols = null;
+
+		if (colorTexture != null) colorTexture.Release(); colorTexture = null;		
+		if (depthTexture != null) depthTexture.Release(); depthTexture = null;
+
 		Object.DestroyImmediate (mat);
 	}
 	
@@ -75,10 +87,9 @@ public class MolScript : MonoBehaviour
 	
 	void OnPostRender()
 	{
-		print(SystemInfo.supportedRenderTargetCount);
-
 		CreateResources ();
 
+		Graphics.SetRenderTarget (colorTexture.colorBuffer, depthTexture.depthBuffer);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
 		mat.SetBuffer ("molPositions", cbMols);
 		mat.SetPass(1);
@@ -87,23 +98,16 @@ public class MolScript : MonoBehaviour
 
 	void OnRenderImage (RenderTexture src, RenderTexture dst)
 	{
-		if (!shader)
-		{
-			Debug.LogWarning ("No Shader set");
-			return;			
-		}
-		
-		if (!SystemInfo.supportsComputeShaders)
-		{
-			Debug.LogWarning ("Compute shaders not supported (not using DX11?)");
-			return;			
-		}
-	
+		mat.SetTexture ("_ColorTex", colorTexture);
+		mat.SetTexture ("_DepthTex", depthTexture);
+
 		Graphics.SetRandomWriteTarget (1, cbPoints);
 		Graphics.Blit (src, dst, mat, 0);
 		Graphics.ClearRandomWriteTargets ();
 
 		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
+
+		// Read the amount of atoms to draw // Time consuming !! Use carefully
 //		var count = new int[4];			
 //		cbDrawArgs.GetData (count);			
 //		Debug.Log ("Atom pos buffer size:" + count[0]);	

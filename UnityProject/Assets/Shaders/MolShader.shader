@@ -1,8 +1,8 @@
-﻿Shader "Custom/MolShader" 
+Shader "Custom/MolShader" 
 {
 	Properties
 	{
-		_MainTex ("", 2D) = "white" {}		
+		
 	}
 	SubShader 
 	{
@@ -16,8 +16,11 @@
 			#pragma fragment frag
 			#pragma target 5.0
 			#include "UnityCG.cginc"
-
+		
 			sampler2D _MainTex;
+			sampler2D _ColorTex;
+			sampler2D _DepthTex;
+			
 			AppendStructuredBuffer<float4> pointBufferOutput : register(u1);
 
 			struct v2f
@@ -36,12 +39,13 @@
 
 			float4 frag (v2f i) : COLOR0
 			{
-				float4 c = tex2D (_MainTex, i.uv);
+				float4 c = tex2D (_ColorTex, i.uv);
+				float d = tex2D (_DepthTex, i.uv).x;
 				
 				[branch]
-				if (c.w == 1)
+				if (d < 1)
 				{
-					pointBufferOutput.Append (float4(i.uv, 1, 1));
+					pointBufferOutput.Append (float4(i.uv, d, 1));
 				}
 				
 				discard;
@@ -110,11 +114,23 @@
 				float4 pos : SV_POSITION;		
 				float2 tex0	: TEXCOORD0;
 			};
+			
+			struct fsOutput
+			{
+				float4 color : COLOR0;		
+				float depth	: DEPTH;
+			};
 
 			vs2gs VS(uint id : SV_VertexID)
-			{
-			    vs2gs output;					    
-			    output.pos = float4(atomPositions[id].xy * 2.0 - 1.0, 0, 1);			    
+			{			    	
+			    float4 atomInfo = atomPositions[id];		    
+			    float3 screenPos = atomInfo.xyz * 2.0 - 1.0;		
+			    
+			   	// Need to go back in MV space to find the right point sprite size	    
+//			    float4 viewPos = mul (UNITY_MATRIX_P, float4(screenPos, 1.0));			    
+			    
+			    vs2gs output;			    				    			    				    
+			    output.pos = float4(screenPos, 1);			    
 			    return output;
 			}
 			
@@ -123,7 +139,7 @@
 			{
 				gs2fs output;
 				
-				float dx = 0.005; //_Size;
+				float dx = 0.005;
 				float dy = dx * _ScreenParams.x / _ScreenParams.y;
 				
 				output.pos = input[0].pos + float4( dx, dy, 0, 0);				
@@ -165,16 +181,10 @@
 				float ndotl = max( 0.0, dot(light, normal));	
 			
 				return spriteColor * ndotl;
-			}			
-			
-//			float4 FS (vs2fs input) : COLOR
-//			{				
-//				return float4(1,1,1,1);
-//			}
+			}	
 			
 			ENDCG					
 		}
-
 	}
 	Fallback Off
 }
