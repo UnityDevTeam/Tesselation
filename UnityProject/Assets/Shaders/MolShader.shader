@@ -2,7 +2,7 @@ Shader "Custom/MolShader"
 {
 	Properties
 	{
-		
+		_MainTex ("", 2D) = "white" {}
 	}
 	SubShader 
 	{
@@ -21,7 +21,6 @@ Shader "Custom/MolShader"
 			#pragma fragment frag
 		
 			sampler2D _MainTex;
-			sampler2D _ColorTex;
 			
 			AppendStructuredBuffer<float4> pointBufferOutput : register(u1);
 
@@ -41,7 +40,7 @@ Shader "Custom/MolShader"
 
 			float4 frag (v2f i) : COLOR0
 			{
-				float4 c = tex2D (_ColorTex, i.uv);
+				float4 c = tex2D (_MainTex, i.uv);
 				
 				[branch]
 				if (c.w > 0)
