@@ -112,10 +112,15 @@ public class MolScript : MonoBehaviour
 //		cbDrawArgs.GetData (count);			
 //		Debug.Log ("Atom pos buffer size:" + count[0]);	
 
+		var projectionMatrixInverse = camera.projectionMatrix.inverse;
+
 		Graphics.SetRenderTarget (dst);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+
 		mat.SetBuffer ("atomPositions", cbPoints);
+		mat.SetMatrix ("projectionMatrixInverse", projectionMatrixInverse);
 		mat.SetPass(2);
+
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 	}
 }

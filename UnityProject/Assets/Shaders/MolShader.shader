@@ -101,9 +101,10 @@ Shader "Custom/MolShader"
 			#pragma vertex VS
 			#pragma fragment FS				
 			#pragma geometry GS	
-													
+									
+			float4x4 projectionMatrixInverse;														
 			StructuredBuffer<float4> atomPositions;
-			
+						
 			struct vs2gs
 			{
 				float4 pos : SV_POSITION;
@@ -127,10 +128,12 @@ Shader "Custom/MolShader"
 			    float3 screenPos = atomInfo.xyz * 2.0 - 1.0;		
 			    
 			   	// Need to go back in MV space to find the right point sprite size	    
-//			    float4 viewPos = mul (UNITY_MATRIX_P, float4(screenPos, 1.0));			    
+			    float4 viewPos = mul (projectionMatrixInverse, float4(screenPos, 1.0));			    
+			    viewPos.xyz = viewPos.xyz / viewPos.w;
+			    viewPos.w = 1;
 			    
 			    vs2gs output;			    				    			    				    
-			    output.pos = float4(screenPos, 1);			    
+			    output.pos = float4(viewPos.xyz, 1);			    
 			    return output;
 			}
 			
@@ -139,22 +142,22 @@ Shader "Custom/MolShader"
 			{
 				gs2fs output;
 				
-				float dx = 0.005;
-				float dy = dx * _ScreenParams.x / _ScreenParams.y;
-				
-				output.pos = input[0].pos + float4( dx, dy, 0, 0);				
+				float dx = 0.05;
+				float dy = 0.05; //dx * _ScreenParams.x / _ScreenParams.y;
+								
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, dy, 0, 0));
 				output.tex0 = float2(1.0f, 1.0f);
 				pointStream.Append(output);
 				
-				output.pos = input[0].pos + float4( dx, -dy, 0, 0);
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, -dy, 0, 0));
 				output.tex0 = float2(1.0f, 0.0f);
 				pointStream.Append(output);					
 				
-				output.pos = input[0].pos + float4( -dx, dy, 0, 0);
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, dy, 0, 0));
 				output.tex0 = float2(0.0f, 1.0f);
 				pointStream.Append(output);
 				
-				output.pos = input[0].pos + float4( -dx, -dy, 0, 0);
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, -dy, 0, 0));
 				output.tex0 = float2(0.0f, 0.0f);
 				pointStream.Append(output);					
 			}
