@@ -48,7 +48,7 @@ public static class PdbReader
 				atom.x = float.Parse(position[0]);
 				atom.y = float.Parse(position[1]);
 				atom.z = float.Parse(position[2]);
-				if (van_der_waals.ContainsKey(split[1])) atom.w = van_der_waals[split[1]];
+//				if (van_der_waals.ContainsKey(split[1])) atom.w = van_der_waals[split[1]];
 				molAtomPositions.Add(atom);
 			}
 		}

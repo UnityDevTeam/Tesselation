@@ -2,10 +2,125 @@ Shader "Custom/MolShader"
 {
 	Properties
 	{
-		_MainTex ("", 2D) = "white" {}
+		
 	}
+	
 	SubShader 
 	{
+		// First pass
+	    Pass 
+	    {
+	    	CGPROGRAM			
+	    		
+			#include "UnityCG.cginc"
+			
+			#pragma only_renderers d3d11
+			#pragma target 5.0				
+			
+			#pragma vertex VS				
+			#pragma fragment FS
+			#pragma hull HS
+			#pragma domain DS	
+			
+			float molScale;		
+																			
+			StructuredBuffer<float4> molPositions;
+			StructuredBuffer<float4> atomPositions;
+			
+			struct vs2hs
+			{
+	            float3 pos : CPOINT;
+        	};
+        	
+        	struct hsConst
+			{
+			    float tessFactor[2] : SV_TessFactor;
+			};
+
+			struct hs2ds
+			{
+			    float3 pos : CPOINT;
+			};
+			
+			struct ds2gs
+			{
+			    float4 pos : SV_Position;
+			    float4 atomInfo : FLOAT4;
+			}; 
+						
+			struct gs2fs
+			{
+				float4 pos : SV_POSITION;									
+				float3 normal : NORMAL;			
+				float2 tex0	: TEXCOORD0;
+			};
+				
+			vs2hs VS(uint id : SV_VertexID)
+			{
+			    vs2hs output;
+			    
+			    output.pos = molPositions[id].xyz;
+			    
+			    return output;
+			}										
+			
+			hsConst HSConst(InputPatch<vs2hs, 1> input, uint patchID : SV_PrimitiveID)
+			{
+				hsConst output;					
+				
+				float4 transformPos = mul (UNITY_MATRIX_MVP, float4(input[0].pos, 1.0));
+				transformPos /= transformPos.w;
+				
+				float tessFactor = sqrt(3523);		
+											
+				if( transformPos.x < -1 || transformPos.y < -1 || transformPos.x > 1 || transformPos.y > 1 || transformPos.z > 1 || transformPos.z < -1 ) 
+				{
+					output.tessFactor[0] = 0.0f;
+					output.tessFactor[1] = 0.0f;
+				}		
+				else
+				{
+					output.tessFactor[0] = tessFactor;
+					output.tessFactor[1] = tessFactor;					
+				}		
+				
+				return output;
+			}
+			
+			[domain("isoline")]
+			[partitioning("integer")]
+			[outputtopology("point")]
+			[outputcontrolpoints(1)]				
+			[patchconstantfunc("HSConst")]
+			hs2ds HS (InputPatch<vs2hs, 1> input, uint ID : SV_OutputControlPointID)
+			{
+			    hs2ds output;
+			    
+			    output.pos = input[0].pos;
+			    
+			    return output;
+			} 
+			
+			[domain("isoline")]
+			ds2gs DS(hsConst input, const OutputPatch<hs2ds, 1> op, float2 uv : SV_DomainLocation)
+			{
+				ds2gs output;	
+
+				int id = min(uv.x * input.tessFactor[0] + uv.y * input.tessFactor[0] * input.tessFactor[1], 3523);				
+				output.atomInfo = float4(op[0].pos + atomPositions[id].xyz * molScale, atomPositions[id].w);
+				output.pos = mul(UNITY_MATRIX_MVP, float4(output.atomInfo.xyz, 1));					
+				return output;			
+			}
+			
+			float4 FS (ds2gs input) : COLOR
+			{				
+				return input.atomInfo;
+			}
+						
+			ENDCG
+		}
+		
+		// Second pass
 		Pass
 		{
 			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
@@ -20,7 +135,7 @@ Shader "Custom/MolShader"
 			#pragma vertex vert
 			#pragma fragment frag
 		
-			sampler2D _MainTex;
+			sampler2D _InputTex;
 			
 			AppendStructuredBuffer<float4> pointBufferOutput : register(u1);
 
@@ -40,10 +155,10 @@ Shader "Custom/MolShader"
 
 			float4 frag (v2f i) : COLOR0
 			{
-				float4 c = tex2D (_MainTex, i.uv);
+				float4 c = tex2D (_InputTex, i.uv);
 				
 				[branch]
-				if (c.w > 0)
+				if (any(c > 0))
 				{
 					pointBufferOutput.Append (c);
 				}
@@ -53,316 +168,167 @@ Shader "Custom/MolShader"
 			}
 			
 			ENDCG
-		}
-
+		}	
+		
+		// Third pass
 		Pass
 		{	
 			CGPROGRAM	
 					
-			#include "UnityCG.cginc"
-			
-			#pragma only_renderers d3d11
-			#pragma target 5.0				
+			#include "UnityCG.cginc"			
 			
 			#pragma vertex VS			
-			#pragma fragment FS	
+			#pragma fragment FS							
+			#pragma geometry GS	
 													
-			StructuredBuffer<float4> molPositions;
+			float molScale;	
+			float4 spriteColor;																														
+			StructuredBuffer<float4> atomPositions;
 			
-			struct vs2fs
+			struct vs2gs
 			{
 				float4 pos : SV_POSITION;
-				float4 worldPos : FLOAT4;
+				float4 size : FLOAT;
+			};
+			
+			struct gs2fs
+			{
+				float4 pos : SV_POSITION;	
 			};
 
-			vs2fs VS(uint id : SV_VertexID)
+			vs2gs VS(uint id : SV_VertexID)
 			{
-			    vs2fs output;		
-			    output.worldPos = float4(molPositions[id].xyz, 1);	    			    
-			    output.pos = mul(UNITY_MATRIX_MVP, molPositions[id]);				    
+			    float4 atomInfo = atomPositions[id];	
+			    
+			    vs2gs output;	
+			    output.pos = mul (UNITY_MATRIX_MV, float4(atomInfo.xyz, 1));
+			    output.size = atomInfo.w; 			    
 			    return output;
 			}
 			
-			float4 FS (vs2fs input) : COLOR
+			[maxvertexcount(1)]
+			void GS(point vs2gs input[1], inout PointStream<gs2fs> pointStream)
+			{
+				float spriteSize = molScale * input[0].size;
+			
+				float4 temp = mul (UNITY_MATRIX_P, float4(spriteSize, 0, input[0].pos.z, 1));  
+			    float discardSize = (temp.x / temp.w) * _ScreenParams.x;
+			
+				if(discardSize <= 1)	
+//				if(true)			
+				{				 
+				  	gs2fs output;				
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos);
+					pointStream.Append(output);			
+				}				
+			}
+			
+			float4 FS (gs2fs input) : COLOR
 			{					
-				return input.worldPos;
+				return spriteColor;
 			}
 			
 			ENDCG					
-		}
+		}	
 		
+		// Fourth pass
 		Pass
 		{		
+			ZWrite On
+						
 			CGPROGRAM	
 					
-			#include "UnityCG.cginc"		
-			
+			#include "UnityCG.cginc"
+									
 			#pragma vertex VS
 			#pragma fragment FS				
 			#pragma geometry GS	
 									
-			float4x4 projectionMatrixInverse;														
+			float molScale;	
+			float4 spriteColor;																													
 			StructuredBuffer<float4> atomPositions;
 						
 			struct vs2gs
 			{
 				float4 pos : SV_POSITION;
+				float4 size : FLOAT;
 			};
 			
 			struct gs2fs
 			{
 				float4 pos : SV_POSITION;		
-				float2 tex0	: TEXCOORD0;
+				float2 mapping	: FLOAT2;
+				float size : FLOAT;
 			};
 			
-			struct fsOutput
+			struct fsOut
 			{
-				float4 color : COLOR0;		
-				float depth	: DEPTH;
+				float4 color : COLOR;		
+				float depth	: SV_DEPTH;
 			};
 
 			vs2gs VS(uint id : SV_VertexID)
 			{			    	
 			    float4 atomInfo = atomPositions[id];	
 			    
-			    vs2gs output;			    				    			    				    
-			    output.pos = mul (UNITY_MATRIX_MV, atomInfo);		    
+			    vs2gs output;	
+			    output.pos = mul (UNITY_MATRIX_MV, float4(atomInfo.xyz, 1));
+			    output.size = atomInfo.w; 			    
 			    return output;
 			}
 			
 			[maxvertexcount(4)]
 			void GS(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
 			{
-				gs2fs output;
+				float spriteSize = molScale * input[0].size;
 				
-				float dx = 0.05;
-				float dy = 0.05;
-								
-				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, dy, 0, 0));
-				output.tex0 = float2(1.0f, 1.0f);
-				pointStream.Append(output);
+				float4 temp = mul (UNITY_MATRIX_P, float4(spriteSize, 0, input[0].pos.z, 1));  
+			    float discardSize = (temp.x / temp.w) * _ScreenParams.x;
+			
+				if(discardSize > 1)	
+//				if(true)
+				{				 
+				  	gs2fs output;				
+					output.size = spriteSize;
 				
-				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, -dy, 0, 0));
-				output.tex0 = float2(1.0f, 0.0f);
-				pointStream.Append(output);					
-				
-				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, dy, 0, 0));
-				output.tex0 = float2(0.0f, 1.0f);
-				pointStream.Append(output);
-				
-				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, -dy, 0, 0));
-				output.tex0 = float2(0.0f, 0.0f);
-				pointStream.Append(output);					
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4(spriteSize, spriteSize, 0, 0));
+					output.mapping = float2(1.0f, 1.0f);
+					pointStream.Append(output);
+
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4(spriteSize, -spriteSize, 0, 0));
+					output.mapping = float2(1.0f, -1.0f);
+					pointStream.Append(output);					
+
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4(-spriteSize, spriteSize, 0, 0));
+					output.mapping = float2(-1.0f, 1.0f);
+					pointStream.Append(output);
+
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4(-spriteSize, -spriteSize, 0, 0));
+					output.mapping = float2(-1.0f, -1.0f);
+					pointStream.Append(output);				
+				}				
 			}
 			
-			float4 FS (gs2fs input) : COLOR
+			void FS (gs2fs input, out float4 fragColor : COLOR, out float fragDepth : DEPTH) 
 			{	
-				float4 spriteColor = float4(1,1,1,1);
+				float lensqr = dot(input.mapping, input.mapping);
+    			
+    			if(lensqr > 1.0)
+        			discard;
+
+			    float3 normal = float3(input.mapping, sqrt(1.0 - lensqr));				
+				float3 light = float3(0, 0, 1);							
 									
-				// Center the texture coordinate
-			    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
-
-			    // Get the distance from the center
-			    float mag = sqrt(dot(normal, normal));
-
-			    // If the distance is greater than 0 we discard the pixel
-			    if ((mag) > 1) discard;
-			
-				// Find the z value according to the sphere equation
-			    normal.z = sqrt(1.0-mag);
-				normal = normalize(normal);
-			
-				// Lambert shading
-				float3 light = float3(0, 0, 1);
 				float ndotl = max( 0.0, dot(light, normal));	
-			
-				return spriteColor * ndotl;
-			}	
-			
-			ENDCG					
-		}
+				float atom01Depth = LinearEyeDepth(input.pos.z);				
+				float atomEyeDepth = LinearEyeDepth(input.pos.z);				
+				float edgeFactor = clamp((ndotl- 0.4) * 50, 0, 1);
+				
+				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;				
+				fragDepth = 1 / ((atomEyeDepth + input.size * -normal.z) * _ZBufferParams.z) - _ZBufferParams.w / _ZBufferParams.z;				
+			}			
+			ENDCG	
+		}				
 	}
 	Fallback Off
-}
-
-	
-//		// Tesselation Pass
-//	    Pass 
-//	    {
-//	    	CGPROGRAM			
-//	    		
-//				#include "UnityCG.cginc"
-//				
-//				#pragma only_renderers d3d11
-//				#pragma target 5.0				
-//				
-//				#pragma vertex VS				
-//				#pragma fragment FS
-//				#pragma hull HS
-//				#pragma domain DS				
-////				#pragma geometry GS
-//				
-//				float molScale;			
-//				float spriteSize;	
-//				float4 spriteColor;
-//																				
-//				StructuredBuffer<float4> molPositions;
-//				StructuredBuffer<float4> atomPositions;
-//				
-//				// vs2hs
-//				struct vs2hs
-//				{
-//		            float3 pos : CPOINT;
-//	        	};
-//	        	
-//	        	// hsConst 
-//				struct hsConst
-//				{
-//				    float tessFactor[2] : SV_TessFactor;
-//				};
-//
-//				// hs2ds
-//				struct hs2ds
-//				{
-//				    float3 pos : CPOINT;
-//				};
-//				
-//				// ds2gs
-//				struct ds2gs
-//				{
-//				    float4 pos : SV_Position;
-//				}; 
-//							
-//				// gs2fs
-//				struct gs2fs
-//				{
-//					float4 pos : SV_POSITION;									
-//					float3 normal : NORMAL;			
-//					float2 tex0	: TEXCOORD0;
-//				};
-//					
-//				// Vertex Program																					
-//				vs2hs VS(uint id : SV_VertexID)
-//				{
-//				    vs2hs output;
-//				    
-//				    output.pos = molPositions[id].xyz;
-//				    
-//				    return output;
-//				}										
-//				
-//				// Hull Constant Function
-//				hsConst HSConst(InputPatch<vs2hs, 1> input, uint patchID : SV_PrimitiveID)
-//				{
-//					hsConst output;					
-//					
-//					float4 transformPos = mul (UNITY_MATRIX_MVP, float4(input[0].pos, 1.0));
-//					transformPos /= transformPos.w;
-//					
-//					float tessFactor = sqrt(3523) -1;		
-//												
-//					if( transformPos.x < -1 || transformPos.y < -1 || transformPos.x > 1 || transformPos.y > 1 || transformPos.z > 1 || transformPos.z < -1 ) 
-//					{
-//						output.tessFactor[0] = 0.0f;
-//						output.tessFactor[1] = 0.0f;
-//					}		
-//					else
-//					{
-//						output.tessFactor[0] = tessFactor;
-//						output.tessFactor[1] = tessFactor;					
-//					}		
-//					
-//					return output;
-//				}
-//				
-//				// Hull Program
-//				[domain("isoline")]
-//				[partitioning("integer")]
-//				[outputtopology("point")]
-//				[outputcontrolpoints(1)]				
-//				[patchconstantfunc("HSConst")]
-//				hs2ds HS (InputPatch<vs2hs, 1> input, uint ID : SV_OutputControlPointID)
-//				{
-//				    hs2ds output;
-//				    
-//				    output.pos = input[0].pos;
-//				    
-//				    return output;
-//				} 
-//				
-//				// Domain Program
-//				[domain("isoline")]
-//				ds2gs DS(hsConst input, const OutputPatch<hs2ds, 1> op, float2 uv : SV_DomainLocation)
-//				{
-//					ds2gs output;	
-//
-//					int id = min(uv.x * input.tessFactor[0] + uv.y * input.tessFactor[0] * input.tessFactor[1], 3523);
-//					
-//					output.pos = mul(UNITY_MATRIX_MVP, float4(op[0].pos + atomPositions[id].xyz * molScale, 1));
-//					
-//					// Transform position with projection matrix
-////					output.pos = mul (UNITY_MATRIX_MV, float4(atomPos.xyz, 1.0));		
-//					
-//					return output;			
-//				}
-//				
-//				float4 FS (ds2gs input) : COLOR
-//				{				
-//					return input.pos;
-//				}
-//				
-////				// Geometry Program
-////				[maxvertexcount(4)]
-////				void GS(point ds2gs input[1], inout TriangleStream<gs2fs> pointStream)
-////				{
-////					gs2fs output;
-////					
-////					output.pos = input[0].pos + float4(  0.5,  0.5, 0, 0) * spriteSize;
-////					output.pos = mul (UNITY_MATRIX_P, output.pos);
-////					output.normal = float3(0.0f, 0.0f, -1.0f);
-////					output.tex0 = float2(1.0f, 1.0f);
-////					pointStream.Append(output);
-////					
-////					output.pos = input[0].pos + float4(  0.5, -0.5, 0, 0) * spriteSize;
-////					output.pos = mul (UNITY_MATRIX_P, output.pos);
-////					output.normal = float3(0.0f, 0.0f, -1.0f);
-////					output.tex0 = float2(1.0f, 0.0f);
-////					pointStream.Append(output);					
-////					
-////					output.pos = input[0].pos + float4( -0.5,  0.5, 0, 0) * spriteSize;
-////					output.pos = mul (UNITY_MATRIX_P, output.pos);
-////					output.normal = float3(0.0f, 0.0f, -1.0f);
-////					output.tex0 = float2(0.0f, 1.0f);
-////					pointStream.Append(output);
-////					
-////					output.pos = input[0].pos + float4( -0.5, -0.5, 0, 0) * spriteSize;
-////					output.pos = mul (UNITY_MATRIX_P, output.pos);
-////					output.normal = float3(0.0f, 0.0f, -1.0f);
-////					output.tex0 = float2(0.0f, 0.0f);
-////					pointStream.Append(output);					
-////				}
-////				
-////				// Fragment Program
-////				float4 FS (gs2fs input) : COLOR
-////				{				
-////					// Center the texture coordinate
-////				    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
-////
-////				    // Get the distance from the center
-////				    float mag = sqrt(dot(normal, normal));
-////
-////				    // If the distance is greater than 0 we discard the pixel
-////				    if ((mag) > 1) discard;
-////				
-////					// Find the z value according to the sphere equation
-////				    normal.z = sqrt(1.0-mag);
-////					normal = normalize(normal);
-////				
-////					// Lambert shading
-////					float3 light = float3(0, 0, 1);
-////					float ndotl = max( 0.0, dot(light, normal));	
-////				
-////					return spriteColor * ndotl;
-////				}			
-//			ENDCG
-//		}		
+}	
