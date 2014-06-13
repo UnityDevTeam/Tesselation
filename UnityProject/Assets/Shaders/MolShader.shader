@@ -91,9 +91,13 @@ Shader "Custom/MolShader"
 			ENDCG					
 		}
 		
+		
+		
 		Pass
 		{		
-			CGPROGRAM	
+			CGPROGRAM
+			#pragma only_renderers d3d11
+			#pragma target 5.0		
 					
 			#include "UnityCG.cginc"		
 			
@@ -180,6 +184,210 @@ Shader "Custom/MolShader"
 			}	
 			
 			ENDCG					
+		}
+		//testing the blending shader
+		Pass
+		{	
+		
+			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+			Blend One One
+			CGPROGRAM
+			#pragma only_renderers d3d11
+			#pragma target 5.0		
+					
+			#include "UnityCG.cginc"		
+			
+			#pragma vertex VS
+			#pragma fragment FS				
+			#pragma geometry GS	
+									
+			float4x4 projectionMatrixInverse;														
+			StructuredBuffer<float4> atomPositions;
+						
+			struct vs2gs
+			{
+				float4 pos : SV_POSITION;
+			};
+			
+			struct gs2fs
+			{
+				float4 pos : SV_POSITION;		
+				float2 tex0	: TEXCOORD0;
+			};
+			
+			struct fsOutput
+		    {
+		        float4 slab0 : COLOR0;
+		        float4 slab1 : COLOR1;
+		        float4 slab2 : COLOR2;
+		        float4 slab3 : COLOR3;
+		    };
+
+
+			vs2gs VS(uint id : SV_VertexID)
+			{			    	
+			    float4 atomInfo = atomPositions[id];	
+			    
+			    vs2gs output;			    				    			    				    
+			    output.pos = mul (UNITY_MATRIX_MV, atomInfo);		    
+			    return output;
+			}
+			
+			[maxvertexcount(4)]
+			void GS(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
+			{
+				gs2fs output;
+				
+				float dx = 0.1;
+				float dy = 0.1;
+								
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, dy, 0, 0));
+				output.tex0 = float2(1.0f, 1.0f);
+				pointStream.Append(output);
+				
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, -dy, 0, 0));
+				output.tex0 = float2(1.0f, 0.0f);
+				pointStream.Append(output);					
+				
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, dy, 0, 0));
+				output.tex0 = float2(0.0f, 1.0f);
+				pointStream.Append(output);
+				
+				output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, -dy, 0, 0));
+				output.tex0 = float2(0.0f, 0.0f);
+				pointStream.Append(output);					
+			}
+			
+			//fsOutput FS (gs2fs input) : COLOR
+			fsOutput FS (gs2fs input) : COLOR
+			{	
+				
+				fsOutput o;
+				// Center the texture coordinate
+			    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
+			    
+			    // Get the distance from the center
+			    float mag = dot(normal.xy, normal.xy);
+			    
+			    float slabValues[16];
+			    
+			    // If the distance is greater than 0 we discard the pixel
+			    if (mag > 1) discard;
+			    //mag = exp(-mag);
+			    
+			    float atom_depth = input.pos.z;// / 100.0f;
+			    
+			    float delta = 0.06666666666667;
+			    //float delta = 6.666666666667;
+			    float running_depth = 0.0;
+			    
+			    for (int i=0;i<16;i++,running_depth+=delta)
+			    {
+			    	float dist2 = (running_depth - atom_depth);
+			    	//dist2*=dist2;
+			    	dist2 = 100.0*(dist2 + (1.0-mag));
+			    	slabValues[i] = mag*exp(-dist2);
+			    }
+			    
+			    o.slab0 = float4(slabValues[0], slabValues[1], slabValues[2], slabValues[3]);
+			    o.slab1 = float4(slabValues[4], slabValues[5], slabValues[6], slabValues[7]);
+			    o.slab2 = float4(slabValues[8], slabValues[9], slabValues[10],slabValues[11]);
+			    o.slab3 = float4(slabValues[12],slabValues[13],slabValues[14],slabValues[15]);
+			    
+			    
+				return o;
+			}	
+			
+			ENDCG					
+		}
+		
+		//iso-surfacing
+		Pass
+		{
+			//ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+
+			CGPROGRAM
+			
+			#include "UnityCG.cginc"
+				
+			#pragma only_renderers d3d11		
+			#pragma target 5.0
+			
+			#pragma vertex vert
+			#pragma fragment frag
+		
+			sampler2D slab0;
+			sampler2D slab1;
+			sampler2D slab2;
+			sampler2D slab3;
+			
+
+			struct v2f
+			{
+				float4 pos : SV_POSITION;
+				float2 uv : TEXCOORD0;
+			};
+
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				o.uv = v.texcoord;
+				return o;
+			}			
+			
+			
+			float4 frag (v2f i) : COLOR0
+			//float4 frag (v2f i,out float depth:DEPTH) : COLOR0
+			
+			{
+				float4 c0 = tex2D (slab0, i.uv);
+				float4 c1 = tex2D (slab1, i.uv);
+				float4 c2 = tex2D (slab2, i.uv);
+				float4 c3 = tex2D (slab3, i.uv);
+				float delta = 0.06666666666667;
+				float clr=0.2;
+				float4 final_clr = float4(0,0,0,1);
+				
+//				if (c0.x > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c0.y > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c0.z > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c0.w > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				
+//				if (c1.x > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c1.y > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c1.z > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c1.w > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				
+//				if (c2.x > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c2.y > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c2.z > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				if (c2.w > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+//				clr+=delta;
+//				
+				if (c3.x > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+				clr+=delta;
+				if (c3.y > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+				clr+=delta;
+				if (c3.z > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+				clr+=delta;
+				if (c3.w > 0.5) { final_clr = float4(clr,clr,clr,1); return final_clr;}
+				clr+=delta;
+				return final_clr;
+			}
+			
+			ENDCG
 		}
 	}
 	Fallback Off
