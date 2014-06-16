@@ -5,8 +5,11 @@ public class MolScript : MonoBehaviour
 {
 	public int molCount = 100000;
 	public Shader shader;
+	public Shader shaderMC;
 	
 	private Material mat;
+	private Material matMC;
+	private Texture3D densityTex;	
 	
 	private RenderTexture colorTexture;
 	private RenderTexture colorTexture2;	
@@ -15,7 +18,7 @@ public class MolScript : MonoBehaviour
 	private ComputeBuffer cbPoints;
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
-	private float[,,] voxels;
+	private Vector3[,,] voxels;
 
 	private RenderTexture[] mrtTex;
 	private RenderBuffer[] mrtRB;
@@ -58,11 +61,12 @@ public class MolScript : MonoBehaviour
 		{
 			//! create the voxelization
 			Vector3 min = new Vector3(-12.0f,-12.0f,-12.0f);
-			Vector3 dx = new Vector3(0.3f,0.3f,0.3f);
-			int nx=64;
-			int ny=64;
-			int nz=64;
+			int nx=32;
+			int ny=32;
+			int nz=32;
+			Vector3 dx = new Vector3(24.0f/(float) (nx-1),24.0f/(float) (ny-1),24.0f/(float) (nz-1));
 			fillVolume(min, dx,nx,ny, nz, molPositions);
+			densityTex = new Texture3D(nx, ny, nz, TextureFormat.RGB24, true);
 			int gridLength = nx*ny*nz;
 			Vector3[] indices = new Vector3[gridLength];
 			int count = 0;
@@ -85,7 +89,7 @@ public class MolScript : MonoBehaviour
 			cbIndices = new ComputeBuffer (indices.Length, 12); 
 			cbIndices.SetData(indices);
 		}
-		
+
 		if (colorTexture == null)
 		{
 			colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
@@ -97,7 +101,7 @@ public class MolScript : MonoBehaviour
 			colorTexture2 = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
 			colorTexture2.Create();
 		}
-
+		/*
 		if (this.mrtTex == null)
 		{
 			this.mrtTex  =   new RenderTexture[4];
@@ -112,18 +116,24 @@ public class MolScript : MonoBehaviour
 				this.mrtRB[i] = this.mrtTex[i].colorBuffer;
 
 		}
-		
+		*/
 		if (mat == null)
 		{
 			mat = new Material(shader);
 			mat.hideFlags = HideFlags.HideAndDontSave;
 		}
+
+		if (matMC == null)
+		{
+			matMC = new Material(shaderMC);
+			matMC.hideFlags = HideFlags.HideAndDontSave;
+		}
 	}
 
 	private float eval(Vector3 p, Vector4[] atoms)
 	{
-		float S = 0;
-		float SR = 1.3;
+		float S = 0.0f;
+		float SR = 1.3f;
 		for (int i=0;i<atoms.Length;i++)
 		{
 			Vector3 apt = atoms[i];
@@ -141,7 +151,7 @@ public class MolScript : MonoBehaviour
 
 	void fillVolume(Vector3 min, Vector3 dx, int nx, int ny, int nz, Vector4[] atoms)
 	{
-		voxels = new float[nx, ny, nz];
+		voxels = new Vector3[nx, ny, nz];
 		
 		for(int x = 0; x < nx; x++)
 		{
@@ -151,7 +161,7 @@ public class MolScript : MonoBehaviour
 				{
 					Vector3 vol_pos = new Vector3(x,y,z);
 					Vector3 p = min + Vector3.Scale(dx,vol_pos);
-					voxels[x,y,z] = eval(p,atoms)-0.5f; 
+					voxels[x,y,z] = new Vector3(eval(p,atoms)-0.5f,1.0f,1.0f); 
 				}
 			}
 		}
@@ -167,11 +177,15 @@ public class MolScript : MonoBehaviour
 		
 		if (colorTexture != null) colorTexture.Release(); colorTexture = null;
 		if (colorTexture2 != null) colorTexture2.Release(); colorTexture2 = null;	
-		for( int i = 0; i < this.mrtTex.Length; i++ ) {
-			if (mrtTex[i] != null) {mrtTex[i].Release(); mrtTex[i]=null;}
-		}
+
+//		for( int i = 0; i < this.mrtTex.Length; i++ ) {
+//			if (mrtTex[i] != null) {mrtTex[i].Release(); mrtTex[i]=null;}
+//		}
+		
 		if (cbIndices != null) cbIndices.Release(); cbIndices = null;
+
 		Object.DestroyImmediate (mat);
+		Object.DestroyImmediate (matMC);
 	}
 	
 	void OnDisable ()
@@ -182,7 +196,7 @@ public class MolScript : MonoBehaviour
 	void OnPostRender()
 	{
 		CreateResources ();
-		
+		/*
 		Graphics.SetRenderTarget (colorTexture);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
 		mat.SetBuffer ("molPositions", cbMols);
@@ -193,6 +207,7 @@ public class MolScript : MonoBehaviour
 		Graphics.Blit (colorTexture, colorTexture2, mat, 0);
 		Graphics.ClearRandomWriteTargets ();		
 		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
+		*/
 		/*
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
@@ -200,8 +215,16 @@ public class MolScript : MonoBehaviour
 		mat.SetPass(2);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 		*/
+		//RenderTexture.active = null;
+		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		//matMC.SetBuffer ("atomPositions", cbPoints);
+		matMC.SetBuffer ("indices", cbIndices);
+		matMC.SetTexture ("dataFieldTex", densityTex);
+		matMC.SetPass(0);
+		Graphics.DrawProcedural(MeshTopology.Points, 32*32*32);
 
 
+		/*
 		Graphics.SetRenderTarget (this.mrtTex[0]);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		Graphics.SetRenderTarget (this.mrtTex[1]);
@@ -214,12 +237,14 @@ public class MolScript : MonoBehaviour
 		mat.SetBuffer ("atomPositions", cbPoints);
 		mat.SetPass(3);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
+		*/
 
 	}
 
 	void OnRenderImage (RenderTexture source, RenderTexture destination){
 		//! iso-surface creation
-		Graphics.Blit (this.mrtTex[0], destination);
+		Graphics.Blit (source, destination);
+		//Graphics.Blit (this.mrtTex[0], destination);
 		/*
 		RenderTexture.active = null;
 		mat.SetTexture("slab0", this.mrtTex[0]);

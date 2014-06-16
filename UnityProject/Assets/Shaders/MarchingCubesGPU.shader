@@ -2,11 +2,11 @@ Shader "Custom/GSMarchingCubes"
 {
   Properties 
 	{
-		_SpriteTex ("Base (RGB)", 2D) = "white" {}
+		//_SpriteTex ("Base (RGB)", 2D) = "white" {}
 		_dataFieldTex ("Data Field Texture", 3D) = "white"{}
 		_dataSize ("Data Field Texture Size", float) = 64 
 		_meshSize ("Mesh Cube Size", float) = 32 
-		_isoLevel ("isoLevel", Range(0.0, 0.5)) = 0.25
+		_isoLevel ("isoLevel", Range(0.0, 0.5)) = 0.0
 	}
 
 	SubShader 
@@ -36,7 +36,7 @@ Shader "Custom/GSMarchingCubes"
 				struct GS_INPUT
 				{
 					float4	pos		: POSITION;
-					float3	normal	: NORMAL;
+					//float3	normal	: NORMAL;
 					float2  tex0	: TEXCOORD0;
 				};
 
@@ -55,26 +55,36 @@ Shader "Custom/GSMarchingCubes"
 
 				float _isoLevel;
  				sampler3D _dataFieldTex;
-				float4x4 _VP;
-				Texture2D _SpriteTex;
-				SamplerState sampler_SpriteTex;
+				//float4x4 _VP;
+//				Texture2D _SpriteTex;
+//				SamplerState sampler_SpriteTex;
 				float _dataSize;
 				float _meshSize;
+				StructuredBuffer<float3> indices;
 
 				// **************************************************************
 				// Shader Programs												*
 				// **************************************************************
 
 				// Vertex Shader ------------------------------------------------
-				GS_INPUT VS_Main(appdata_base v)
-				{
-					GS_INPUT output = (GS_INPUT)0;
-					
-					output.pos =  v.vertex;
-					output.normal = v.normal;
-					output.tex0 = float2(0, 0);
-
-					return output;
+				
+//				GS_INPUT VS_Main(appdata_base v)
+//				{
+//					GS_INPUT output = (GS_INPUT)0;
+//					
+//					output.pos =  v.vertex;
+//					output.normal = v.normal;
+//					output.tex0 = float2(0, 0);
+//
+//					return output;
+//				}
+				GS_INPUT VS_Main(uint id : SV_VertexID)
+				{			    	
+				    float3 atomInfo = indices[id];	
+				    
+				    GS_INPUT output;			    				    			    				    
+				    output.pos = float4(atomInfo,1.0);		    
+				    return output;
 				}
  				
 
