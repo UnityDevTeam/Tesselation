@@ -18,7 +18,7 @@ public class MolScript : MonoBehaviour
 	private ComputeBuffer cbPoints;
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
-	private Vector3[,,] voxels;
+	private Color[]  voxels;
 
 	private RenderTexture[] mrtTex;
 	private RenderBuffer[] mrtRB;
@@ -66,11 +66,16 @@ public class MolScript : MonoBehaviour
 			int nz=32;
 			Vector3 dx = new Vector3(24.0f/(float) (nx-1),24.0f/(float) (ny-1),24.0f/(float) (nz-1));
 			fillVolume(min, dx,nx,ny, nz, molPositions);
-			densityTex = new Texture3D(nx, ny, nz, TextureFormat.RGB24, true);
+			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
+			densityTex.SetPixels(voxels);
+			densityTex.Apply();
+			densityTex.filterMode = FilterMode.Trilinear;
+			densityTex.wrapMode = TextureWrapMode.Clamp;
+			densityTex.anisoLevel = 1;
 			int gridLength = nx*ny*nz;
 			Vector3[] indices = new Vector3[gridLength];
 			int count = 0;
-			Vector3 deltaStep = new Vector3 (1.0f / (float) nx, 1.0f / (float) ny, 1.0f / (float) nz);
+			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx-1),1.0f/(float) (ny-1),1.0f/(float) (nz-1));
 			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
 			for(int x = 0; x < nx; x++)
 			{
@@ -151,17 +156,20 @@ public class MolScript : MonoBehaviour
 
 	void fillVolume(Vector3 min, Vector3 dx, int nx, int ny, int nz, Vector4[] atoms)
 	{
-		voxels = new Vector3[nx, ny, nz];
-		
+		voxels = new Color[nx*ny*nz];
+		int idx = 0;
+		Color c = Color.white;
 		for(int x = 0; x < nx; x++)
 		{
 			for(int y = 0; y < ny; y++)
 			{
-				for(int z = 0; z < nz; z++)
+				for(int z = 0; z < nz; z++, ++idx)
 				{
 					Vector3 vol_pos = new Vector3(x,y,z);
 					Vector3 p = min + Vector3.Scale(dx,vol_pos);
-					voxels[x,y,z] = new Vector3(eval(p,atoms)-0.5f,1.0f,1.0f); 
+					//voxels[idx] = new Vector3(eval(p,atoms)-0.5f,1.0f,1.0f); 
+					c.r = c.g = c.b = c.a = Mathf.Clamp01(eval(p,atoms)-0.5f);
+					voxels[idx] = c;
 				}
 			}
 		}
