@@ -3,7 +3,7 @@ Shader "Custom/GSMarchingCubes"
   Properties 
 	{
 		//_SpriteTex ("Base (RGB)", 2D) = "white" {}
-		_dataFieldTex ("Data Field Texture", 3D) = "white"{}
+		//_dataFieldTex ("Data Field Texture", 3D) = "white"{}
 		_dataSize ("Data Field Texture Size", float) = 64 
 		_meshSize ("Mesh Cube Size", float) = 32 
 		_isoLevel ("isoLevel", Range(0.0, 1.0)) = 0.5
@@ -529,9 +529,10 @@ Shader "Custom/GSMarchingCubes"
 					float u = (atan2(dir.z,dir.x)+pi)/(2.0 * pi); 
 					float v = 0.5 + 0.5* dot(float3(0,1,0),dir);
 
-					float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
-					//return float4(d,d,d,1);
-					return float4(1,1,1,1);
+					//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
+					float d = abs(dot(float3(0,0,-1),normal));
+					return float4(d,d,d,1);
+					//return float4(1,1,1,1);
 					//return float4(normal,1);
 					//return _SpriteTex.Sample(sampler_SpriteTex, float2(u,v))  * saturate(0.5 + normal.y * 0.5) ;
 					//return _SpriteTex.Sample(sampler_SpriteTex, float2(u,v))  * d;
@@ -539,5 +540,140 @@ Shader "Custom/GSMarchingCubes"
 
 			ENDCG
 		}
+		Pass
+		{
+			Cull Off
+			Tags { "RenderType"="Opaque" }
+			LOD 200
+		
+			CGPROGRAM
+				#pragma target 5.0
+				#pragma debug
+				#pragma vertex VS_Main
+				#pragma fragment FS_Main
+				#pragma geometry GS_Main
+				#include "UnityCG.cginc"  
+				#include "Lighting.cginc"
+
+				#define F3 1.0/3.0 
+				#define G3 1.0/6.0 
+				
+
+				// **************************************************************
+				// Data structures												*
+				// **************************************************************
+				struct FS_INPUT
+				{
+					float4	pos		: POSITION;
+					float val: FLOAT;
+				};
+				struct vs2gs
+				{
+					
+					float4 pos : SV_POSITION;
+					float val: FLOAT;
+				};
+				struct gs2fs
+				{
+					float4 pos : SV_POSITION;		
+					float2 tex0	: TEXCOORD0;
+					float val: FLOAT;
+				};
+				
+				// **************************************************************
+				// Vars															*
+				// **************************************************************
+
+				float _isoLevel;
+ 				sampler3D _dataFieldTex;
+				//float4x4 _VP;
+//				Texture2D _SpriteTex;
+//				SamplerState sampler_SpriteTex;
+				float _dataSize;
+				float _meshSize;
+				StructuredBuffer<float3> indices;
+
+				// **************************************************************
+				// Shader Programs												*
+				// **************************************************************
+
+				// Vertex Shader ------------------------------------------------
+				
+//				GS_INPUT VS_Main(appdata_base v)
+//				{
+//					GS_INPUT output = (GS_INPUT)0;
+//					
+//					output.pos =  v.vertex;
+//					output.normal = v.normal;
+//					output.tex0 = float2(0, 0);
+//
+//					return output;
+//				}
+				float SampleData( float4 pPosition  ){
+					//float3 sampleloc = pPosition.xyz - float3(0.5,0.5,0.5);
+					//return sqrt(dot(sampleloc,sampleloc));
+					return tex3Dlod(_dataFieldTex,float4(pPosition.xyz,0)).x;	
+					//return tex3D(_dataFieldTex,pPosition.xyz).x;	
+				}
+				vs2gs VS_Main(uint id : SV_VertexID)
+				{			    	
+				    float3 atomInfo = indices[id];	
+				    
+				    vs2gs output;
+				    output.val = SampleData(float4(atomInfo,1.0));    				    			    				    
+				    output.pos = mul(UNITY_MATRIX_MV,float4(atomInfo,1.0));		    
+				    return output;
+				}
+				[maxvertexcount(4)]
+				void GS_Main(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
+				{
+					gs2fs output;
+					
+					float dx = 0.005;
+					float dy = 0.005;
+									
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, dy, 0, 0));
+					output.tex0 = float2(1.0f, 1.0f);
+					output.val = input[0].val;
+					pointStream.Append(output);
+					
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( dx, -dy, 0, 0));
+					output.tex0 = float2(1.0f, 0.0f);
+					pointStream.Append(output);					
+					
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, dy, 0, 0));
+					output.tex0 = float2(0.0f, 1.0f);
+					pointStream.Append(output);
+					
+					output.pos = mul (UNITY_MATRIX_P, input[0].pos + float4( -dx, -dy, 0, 0));
+					output.tex0 = float2(0.0f, 0.0f);
+					pointStream.Append(output);					
+				}
+				float4 FS_Main(gs2fs input) : COLOR
+				{
+					float4 spriteColor = float4(input.val,input.val,input.val,1);
+										
+					// Center the texture coordinate
+				    float3 normal = float3(input.tex0 * 2.0 - float2(1.0, 1.0), 0);
+
+				    // Get the distance from the center
+				    float mag = sqrt(dot(normal, normal));
+
+				    // If the distance is greater than 0 we discard the pixel
+				    if ((mag) > 1) discard;
+				
+					// Find the z value according to the sphere equation
+				    normal.z = sqrt(1.0-mag);
+					normal = normalize(normal);
+				
+					// Lambert shading
+					float3 light = float3(0, 0, 1);
+					float ndotl = max( 0.0, dot(light, normal));	
+				
+					return spriteColor;// * ndotl;
+					//return float4(1,1,1,1);
+				}
+				ENDCG
 	} 
+	}
 }

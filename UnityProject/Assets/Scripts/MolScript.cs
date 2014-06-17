@@ -46,7 +46,7 @@ public class MolScript : MonoBehaviour
 				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
-				                    1.3f);
+				                    0.8f);
 			}
 			
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
@@ -61,11 +61,11 @@ public class MolScript : MonoBehaviour
 		if (cbIndices == null) 
 		{
 			//! create the voxelization
-			Vector3 min = new Vector3(-12.0f,-12.0f,-12.0f);
+			Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
 			int nx=32;
 			int ny=32;
 			int nz=32;
-			Vector3 dx = new Vector3(24.0f/(float) (nx-1),24.0f/(float) (ny-1),24.0f/(float) (nz-1));
+			Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
 			fillVolume(min, dx,nx,ny, nz);
 			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
 			densityTex.SetPixels(voxels);
@@ -76,7 +76,7 @@ public class MolScript : MonoBehaviour
 			int gridLength = nx*ny*nz;
 			Vector3[] indices = new Vector3[gridLength];
 			int count = 0;
-			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx-1),1.0f/(float) (ny-1),1.0f/(float) (nz-1));
+			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx),1.0f/(float) (ny),1.0f/(float) (nz));
 			Debug.Log("delta step"+deltaStep.ToString("F4")+"dx"+dx.ToString("F4"));
 			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
 			for(int x = 0; x < nx; x++)
@@ -89,7 +89,8 @@ public class MolScript : MonoBehaviour
 						vol_pos.x+=deltaStep.x*(float) x;
 						vol_pos.y+=deltaStep.y*(float) y;
 						vol_pos.z+=deltaStep.z*(float) z;
-						indices[count++]=vol_pos;
+						Vector3 _hs = new Vector3(0.5f,0.5f,0.5f);
+						indices[count++]=(vol_pos-_hs);
 						//Debug.Log(vol_pos);
 					}
 				}
@@ -230,10 +231,10 @@ public class MolScript : MonoBehaviour
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 		*/
 		RenderTexture.active = null;
-		GL.Clear (true, true, new Color (0.0f, 1.0f, 0.0f, 0.0f));
+		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		//matMC.SetBuffer ("atomPositions", cbPoints);
 		matMC.SetBuffer ("indices", cbIndices);
-		matMC.SetTexture ("dataFieldTex", densityTex);
+		matMC.SetTexture ("_dataFieldTex", densityTex);
 		matMC.SetPass(0);
 		Graphics.DrawProcedural(MeshTopology.Points, 32*32*32);
 
