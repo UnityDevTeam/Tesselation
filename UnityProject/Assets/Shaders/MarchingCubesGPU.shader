@@ -6,7 +6,7 @@ Shader "Custom/GSMarchingCubes"
 		_dataFieldTex ("Data Field Texture", 3D) = "white"{}
 		_dataSize ("Data Field Texture Size", float) = 64 
 		_meshSize ("Mesh Cube Size", float) = 32 
-		_isoLevel ("isoLevel", Range(0.0, 0.5)) = 0.0
+		_isoLevel ("isoLevel", Range(0.0, 1.0)) = 0.5
 	}
 
 	SubShader 
@@ -103,21 +103,21 @@ Shader "Custom/GSMarchingCubes"
 				// Geometry Shader -----------------------------------------------------
 				[maxvertexcount(15)]
 				void GS_Main(point GS_INPUT p[1], inout TriangleStream<FS_INPUT> triStream)	{
-					/*
-					const float size = 1.0/32.0;
-	 				const float4 cubeVerts[8] = {
-						//front face
-						float4(0, 0, 0, 0) ,		//LB   0
-						float4(0,  size, 0,	0) ,		//LT   1
-						float4( size,  size, 0, 0) ,		//RT   2
-						float4( size, 0, 0, 0) ,		//RB   3
-						//bac0
-						float4(0, 0,  size, 0),		// LB  4
-						float4(0,  size,  size, 0),		// LT  5
-						float4( size,  size,  size, 0),		// RT  6
-						float4( size, 0,  size, 0)		// RB  7
-					};
-					*/
+					
+//					const float size = 1.0/32.0;
+//	 				const float4 cubeVerts[8] = {
+//						//front face
+//						float4(0, 0, 0, 0) ,		//LB   0
+//						float4(0,  size, 0,	0) ,		//LT   1
+//						float4( size,  size, 0, 0) ,		//RT   2
+//						float4( size, 0, 0, 0) ,		//RB   3
+//						//bac0
+//						float4(0, 0,  size, 0),		// LB  4
+//						float4(0,  size,  size, 0),		// LT  5
+//						float4( size,  size,  size, 0),		// RT  6
+//						float4( size, 0,  size, 0)		// RB  7
+//					};
+//					
 
 					const float halfSize = 0.5/_meshSize; 
 	 				const float4 cubeVerts[8] = {

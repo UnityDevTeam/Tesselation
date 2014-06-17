@@ -4,7 +4,7 @@ using UnityEngine;
 public class MolScript : MonoBehaviour
 {
 	public int molCount = 100000;
-	public Shader shader;
+	//public Shader shader;
 	public Shader shaderMC;
 	
 	private Material mat;
@@ -22,6 +22,7 @@ public class MolScript : MonoBehaviour
 
 	private RenderTexture[] mrtTex;
 	private RenderBuffer[] mrtRB;
+	private Vector4[] molPositions;
 	
 	private void CreateResources ()
 	{
@@ -35,7 +36,7 @@ public class MolScript : MonoBehaviour
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
 		}
-		Vector4[] molPositions = null;
+
 		if (cbMols == null)
 		{
 			molPositions = new Vector4[molCount];
@@ -45,7 +46,7 @@ public class MolScript : MonoBehaviour
 				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
-				                    1);
+				                    1.3f);
 			}
 			
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
@@ -65,17 +66,18 @@ public class MolScript : MonoBehaviour
 			int ny=32;
 			int nz=32;
 			Vector3 dx = new Vector3(24.0f/(float) (nx-1),24.0f/(float) (ny-1),24.0f/(float) (nz-1));
-			fillVolume(min, dx,nx,ny, nz, molPositions);
+			fillVolume(min, dx,nx,ny, nz);
 			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
 			densityTex.SetPixels(voxels);
 			densityTex.Apply();
 			densityTex.filterMode = FilterMode.Trilinear;
 			densityTex.wrapMode = TextureWrapMode.Clamp;
-			densityTex.anisoLevel = 1;
+			densityTex.anisoLevel = 2;
 			int gridLength = nx*ny*nz;
 			Vector3[] indices = new Vector3[gridLength];
 			int count = 0;
 			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx-1),1.0f/(float) (ny-1),1.0f/(float) (nz-1));
+			Debug.Log("delta step"+deltaStep.ToString("F4")+"dx"+dx.ToString("F4"));
 			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
 			for(int x = 0; x < nx; x++)
 			{
@@ -88,6 +90,7 @@ public class MolScript : MonoBehaviour
 						vol_pos.y+=deltaStep.y*(float) y;
 						vol_pos.z+=deltaStep.z*(float) z;
 						indices[count++]=vol_pos;
+						//Debug.Log(vol_pos);
 					}
 				}
 			}
@@ -122,12 +125,13 @@ public class MolScript : MonoBehaviour
 
 		}
 		*/
-		if (mat == null)
-		{
-			mat = new Material(shader);
-			mat.hideFlags = HideFlags.HideAndDontSave;
-		}
 
+//		if (mat == null)
+//		{
+//			mat = new Material(shader);
+//			mat.hideFlags = HideFlags.HideAndDontSave;
+//		}
+		
 		if (matMC == null)
 		{
 			matMC = new Material(shaderMC);
@@ -135,14 +139,14 @@ public class MolScript : MonoBehaviour
 		}
 	}
 
-	private float eval(Vector3 p, Vector4[] atoms)
+	private float eval(Vector3 p)
 	{
 		float S = 0.0f;
 		float SR = 1.3f;
-		for (int i=0;i<atoms.Length;i++)
+		for (int i=0;i<molPositions.Length;i++)
 		{
-			Vector3 apt = atoms[i];
-			float radius = atoms[i].w;
+			Vector3 apt = molPositions[i];
+			float radius = molPositions[i].w;
 			Vector3 YD = apt - p;
 			float r = Vector3.Dot(YD,YD);
 			float b = SR*SR;
@@ -154,7 +158,7 @@ public class MolScript : MonoBehaviour
 		return S;
 	}
 
-	void fillVolume(Vector3 min, Vector3 dx, int nx, int ny, int nz, Vector4[] atoms)
+	void fillVolume(Vector3 min, Vector3 dx, int nx, int ny, int nz)
 	{
 		voxels = new Color[nx*ny*nz];
 		int idx = 0;
@@ -168,7 +172,9 @@ public class MolScript : MonoBehaviour
 					Vector3 vol_pos = new Vector3(x,y,z);
 					Vector3 p = min + Vector3.Scale(dx,vol_pos);
 					//voxels[idx] = new Vector3(eval(p,atoms)-0.5f,1.0f,1.0f); 
-					c.r = c.g = c.b = c.a = Mathf.Clamp01(eval(p,atoms)-0.5f);
+					//c.r = c.g = c.b = c.a = Mathf.Clamp01(eval(p)-0.5f);
+					c.r = c.g = c.b = c.a = Mathf.Clamp01(eval(p));
+					//if (c.r>0.5) Debug.Log ("TES!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 					voxels[idx] = c;
 				}
 			}
@@ -192,7 +198,7 @@ public class MolScript : MonoBehaviour
 		
 		if (cbIndices != null) cbIndices.Release(); cbIndices = null;
 
-		Object.DestroyImmediate (mat);
+		//Object.DestroyImmediate (mat);
 		Object.DestroyImmediate (matMC);
 	}
 	
@@ -223,8 +229,8 @@ public class MolScript : MonoBehaviour
 		mat.SetPass(2);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 		*/
-		//RenderTexture.active = null;
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		RenderTexture.active = null;
+		GL.Clear (true, true, new Color (0.0f, 1.0f, 0.0f, 0.0f));
 		//matMC.SetBuffer ("atomPositions", cbPoints);
 		matMC.SetBuffer ("indices", cbIndices);
 		matMC.SetTexture ("dataFieldTex", densityTex);
