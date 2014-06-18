@@ -4,8 +4,8 @@ Shader "Custom/GSMarchingCubes"
 	{
 		//_SpriteTex ("Base (RGB)", 2D) = "white" {}
 		//_dataFieldTex ("Data Field Texture", 3D) = "white"{}
-		_dataSize ("Data Field Texture Size", float) = 64 
-		_meshSize ("Mesh Cube Size", float) = 32 
+		_dataSize ("Data Field Texture Size", float) = 128 
+		_meshSize ("Mesh Cube Size", float) = 64 
 		_isoLevel ("isoLevel", Range(0.0, 1.0)) = 0.5
 	}
 
@@ -19,7 +19,7 @@ Shader "Custom/GSMarchingCubes"
 		
 			CGPROGRAM
 				#pragma target 5.0
-				#pragma debug
+				//#pragma debug
 				#pragma vertex VS_Main
 				#pragma fragment FS_Main
 				#pragma geometry GS_Main
@@ -92,12 +92,15 @@ Shader "Custom/GSMarchingCubes"
 					//float3 sampleloc = pPosition.xyz - float3(0.5,0.5,0.5);
 					//return sqrt(dot(sampleloc,sampleloc));
 					return tex3Dlod(_dataFieldTex,float4(pPosition.xyz,0)).x;	
+					//return tex3D(_dataFieldTex,pPosition.xyz).x;	
+					
 				}
 
 				float SampleData3( float3 p){
 					//float3 sampleloc = p - float3(0.5,0.5,0.5);
 					//return sqrt(dot(sampleloc,sampleloc));
 					return tex3Dlod(_dataFieldTex,float4(p.xyz,0)).x;	
+					//return tex3D(_dataFieldTex,p.xyz).x;
 				}
 
 				// Geometry Shader -----------------------------------------------------

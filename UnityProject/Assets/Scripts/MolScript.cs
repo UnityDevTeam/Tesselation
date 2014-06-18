@@ -3,7 +3,7 @@ using UnityEngine;
 //[ExecuteInEditMode]
 public class MolScript : MonoBehaviour
 {
-	public int molCount = 100000;
+	public int molCount = 100;
 	//public Shader shader;
 	public Shader shaderMC;
 	
@@ -11,17 +11,15 @@ public class MolScript : MonoBehaviour
 	private Material matMC;
 	private Texture3D densityTex;	
 	
-	private RenderTexture colorTexture;
-	private RenderTexture colorTexture2;	
+	private RenderTexture volumeTexture;
 	
 	private ComputeBuffer cbDrawArgs;
 	private ComputeBuffer cbPoints;
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
+	public ComputeShader cs;
 	private Color[]  voxels;
-
-	private RenderTexture[] mrtTex;
-	private RenderBuffer[] mrtRB;
+	
 	private Vector4[] molPositions;
 	
 	private void CreateResources ()
@@ -58,21 +56,33 @@ public class MolScript : MonoBehaviour
 			cbPoints = new ComputeBuffer (Screen.width * Screen.height, 16, ComputeBufferType.Append);
 		}
 
+		if (volumeTexture == null)
+		{
+			volumeTexture = new RenderTexture (64, 64, 0, RenderTextureFormat.ARGBFloat);
+			volumeTexture.volumeDepth = 64;
+			volumeTexture.isVolume = true;
+			volumeTexture.enableRandomWrite = true;
+			volumeTexture.Create();
+		}
+
 		if (cbIndices == null) 
 		{
 			//! create the voxelization
 			Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
-			int nx=32;
-			int ny=32;
-			int nz=32;
+			int nx=64;
+			int ny=64;
+			int nz=64;
 			Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
-			fillVolume(min, dx,nx,ny, nz);
-			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
-			densityTex.SetPixels(voxels);
-			densityTex.Apply();
-			densityTex.filterMode = FilterMode.Trilinear;
-			densityTex.wrapMode = TextureWrapMode.Clamp;
-			densityTex.anisoLevel = 2;
+			UpdateDensityTexture(dx,min);
+			volumeTexture.filterMode = FilterMode.Trilinear;
+			//volumeTexture.anisoLevel = 2;
+//			fillVolume(min, dx,nx,ny, nz);
+//			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
+//			densityTex.SetPixels(voxels);
+//			densityTex.Apply();
+//			densityTex.filterMode = FilterMode.Trilinear;
+//			densityTex.wrapMode = TextureWrapMode.Clamp;
+//			densityTex.anisoLevel = 2;
 			int gridLength = nx*ny*nz;
 			Vector3[] indices = new Vector3[gridLength];
 			int count = 0;
@@ -98,41 +108,8 @@ public class MolScript : MonoBehaviour
 			cbIndices = new ComputeBuffer (indices.Length, 12); 
 			cbIndices.SetData(indices);
 		}
-
-		if (colorTexture == null)
-		{
-			colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-			colorTexture.Create();
-		}
 		
-		if (colorTexture2 == null)
-		{
-			colorTexture2 = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-			colorTexture2.Create();
-		}
-		/*
-		if (this.mrtTex == null)
-		{
-			this.mrtTex  =   new RenderTexture[4];
-			this.mrtRB    =   new RenderBuffer[4];
-
-			this.mrtTex[0] = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-			this.mrtTex[1] = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-			this.mrtTex[2] = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-			this.mrtTex[3] = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-
-			for( int i = 0; i < this.mrtTex.Length; i++ )
-				this.mrtRB[i] = this.mrtTex[i].colorBuffer;
-
-		}
-		*/
-
-//		if (mat == null)
-//		{
-//			mat = new Material(shader);
-//			mat.hideFlags = HideFlags.HideAndDontSave;
-//		}
-		
+				
 		if (matMC == null)
 		{
 			matMC = new Material(shaderMC);
@@ -183,6 +160,17 @@ public class MolScript : MonoBehaviour
 		
 	}
 
+	private void UpdateDensityTexture(Vector3 dx,Vector3 min)
+	{
+		cs.SetVector ("dx", dx);
+		cs.SetVector ("minBox", min);
+		cs.SetInt("atomCount", molPositions.Length);
+		cs.SetBuffer(0,"molPositions", cbMols);
+		cs.SetTexture (0, "Result", volumeTexture);
+		cs.Dispatch (0, 8,8,8);
+
+	}
+
 	
 	private void ReleaseResources ()
 	{
@@ -190,16 +178,10 @@ public class MolScript : MonoBehaviour
 		if (cbPoints != null) cbPoints.Release(); cbPoints = null;
 		if (cbMols != null) cbMols.Release(); cbMols = null;
 		
-		if (colorTexture != null) colorTexture.Release(); colorTexture = null;
-		if (colorTexture2 != null) colorTexture2.Release(); colorTexture2 = null;	
+		if (volumeTexture != null) volumeTexture.Release(); volumeTexture = null;
 
-//		for( int i = 0; i < this.mrtTex.Length; i++ ) {
-//			if (mrtTex[i] != null) {mrtTex[i].Release(); mrtTex[i]=null;}
-//		}
-		
 		if (cbIndices != null) cbIndices.Release(); cbIndices = null;
 
-		//Object.DestroyImmediate (mat);
 		Object.DestroyImmediate (matMC);
 	}
 	
@@ -234,25 +216,12 @@ public class MolScript : MonoBehaviour
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		//matMC.SetBuffer ("atomPositions", cbPoints);
 		matMC.SetBuffer ("indices", cbIndices);
-		matMC.SetTexture ("_dataFieldTex", densityTex);
+		//matMC.SetTexture ("_dataFieldTex", densityTex);
+		matMC.SetTexture ("_dataFieldTex", volumeTexture);
 		matMC.SetPass(0);
-		Graphics.DrawProcedural(MeshTopology.Points, 32*32*32);
+		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
 
 
-		/*
-		Graphics.SetRenderTarget (this.mrtTex[0]);
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		Graphics.SetRenderTarget (this.mrtTex[1]);
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		Graphics.SetRenderTarget (this.mrtTex[2]);
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		Graphics.SetRenderTarget (this.mrtTex[3]);
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		Graphics.SetRenderTarget (this.mrtRB,this.mrtTex[0].depthBuffer);
-		mat.SetBuffer ("atomPositions", cbPoints);
-		mat.SetPass(3);
-		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
-		*/
 
 	}
 
