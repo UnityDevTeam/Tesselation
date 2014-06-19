@@ -14,7 +14,8 @@ public class MolScript : MonoBehaviour
 	private RenderTexture volumeTexture;
 	
 	private ComputeBuffer cbDrawArgs;
-	private ComputeBuffer cbPoints;
+	private ComputeBuffer aBuffer;
+	private ComputeBuffer aHeadBuffer;
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
 	public ComputeShader cs;
@@ -44,16 +45,28 @@ public class MolScript : MonoBehaviour
 				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
 				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
-				                    0.8f);
+				                    0.3f);
 			}
 			
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
 			cbMols.SetData(molPositions);
 		}
 		
-		if (cbPoints == null)
+		if (aBuffer == null)
 		{
-			cbPoints = new ComputeBuffer (Screen.width * Screen.height, 16, ComputeBufferType.Append);
+			uint resolutionArea = Screen.width * Screen.height;
+			aBuffer = new ComputeBuffer (resolutionArea*10, 16, ComputeBufferType.Append);
+			// Initialize head pointer buffer to magic value : 0
+
+			uint[] initialHeadArray = new uint[resolutionArea];
+			for (int i = 0; i < resolutionArea; i++)
+			{
+				initialHeadArray[i] =  0xFFFFFFFF;
+			}
+			
+			aHeadBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
+			aHeadBuffer.SetData(initialHeadArray);
+
 		}
 
 		if (volumeTexture == null)
@@ -175,7 +188,7 @@ public class MolScript : MonoBehaviour
 	private void ReleaseResources ()
 	{
 		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
-		if (cbPoints != null) cbPoints.Release(); cbPoints = null;
+		if (aBuffer != null) aBuffer.Release(); aBuffer = null;
 		if (cbMols != null) cbMols.Release(); cbMols = null;
 		
 		if (volumeTexture != null) volumeTexture.Release(); volumeTexture = null;

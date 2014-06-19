@@ -1,4 +1,5 @@
 #pragma kernel CSMain
+//#pragma kernel CSEvalAtom
 RWTexture3D<float4> Result;
 StructuredBuffer<float4> molPositions;
 float3 dx;
@@ -37,3 +38,25 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 	c.r = c.g = c.b = c.w = fval;
 	Result[id] = c;
 }
+/*
+int3 getVoxel(in float3 p)
+{
+	int3 id = (p-minBox)/dx;
+	return id;
+}
+
+[numthreads(1000,1,1)]
+void CSEvalAtom(uint3 id : SV_DispatchThreadID)
+{
+	uint atomidx = id.x;
+	float4 apt = molPositions[i];
+	float radius = apt.w;
+	float3 vol_pos = float3(id.x,id.y,id.z);
+	float3 p = minBox + vol_pos*dx;
+	float fval = eval(p);
+	//fval = 0.1 + vol_pos.x/32.0;
+	float4 c;
+	c.r = c.g = c.b = c.w = fval;
+	Result[id] = c;
+}
+*/
