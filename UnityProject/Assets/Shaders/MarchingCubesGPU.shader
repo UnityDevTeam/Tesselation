@@ -535,6 +535,10 @@ Shader "Custom/GSMarchingCubes"
 
 					//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
 					float d = abs(dot(float3(0,0,-1),normal));
+					float2 screenUV = input.pos.xy / input.pos.w;
+			    	screenUV.x =   (screenUV.x + 1) * 0.5f;
+					screenUV.y = 1-(screenUV.y + 1) * 0.5f;
+					WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
 					return float4(d,d,d,1);
 					//return float4(1,1,1,1);
 					//return float4(normal,1);
@@ -561,7 +565,7 @@ Shader "Custom/GSMarchingCubes"
 
 			sampler2D _InputTex;
 
-			AppendStructuredBuffer<float4> aBuffer : register(u0);
+			AppendStructuredBuffer<float4> aBuffer : register(u1);
 
 			struct v2f
 			{
@@ -584,7 +588,7 @@ Shader "Custom/GSMarchingCubes"
 				[branch]
 				if (any(c > 0))
 				{
-					pointBufferOutput.Append (c);
+					aBuffer.Append (c);
 				}
 
 				discard;

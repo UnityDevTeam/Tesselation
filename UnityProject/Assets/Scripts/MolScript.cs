@@ -14,15 +14,52 @@ public class MolScript : MonoBehaviour
 	private RenderTexture volumeTexture;
 	
 	private ComputeBuffer cbDrawArgs;
-	private ComputeBuffer aBuffer;
-	private ComputeBuffer aHeadBuffer;
+	//! a buffers
+	private ComputeBuffer globalDataBuffer;
+	private ComputeBuffer headBuffer;
+	private const int MAX_OVERDRAW = 5;
+	private readonly int resolutionArea = Screen.width * Screen.height;
+	private uint[] initialHeadArray;
+	//! a buffers
+
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
 	public ComputeShader cs;
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
+
+	struct GlobalData   // size -> 12
+	{
+		uint colour;
+		uint depth;
+		uint previousNode;
+	}
+
+
+	private void CreateBuffers()
+	{
+		globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Counter);
+		GlobalData[] initialDataArray = new GlobalData[MAX_OVERDRAW * resolutionArea];
+		for (int i = 0; i < MAX_OVERDRAW * resolutionArea; i++)
+		{
+			initialDataArray[i] = new GlobalData();
+		}
+		globalDataBuffer.SetData(initialDataArray);
+		
+		// Initialize head pointer buffer to magic value : 0
+		initialHeadArray = new uint[resolutionArea];
+		for (int i = 0; i < resolutionArea; i++)
+		{
+			initialHeadArray[i] =  0xFFFFFFFF;
+		}
+		
+		//headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
+		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Default);
+		headBuffer.SetData(initialHeadArray);
+	}
 	
+
 	private void CreateResources ()
 	{
 		if (cbDrawArgs == null)
@@ -51,24 +88,8 @@ public class MolScript : MonoBehaviour
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
 			cbMols.SetData(molPositions);
 		}
-		
-		if (aBuffer == null)
-		{
-			uint resolutionArea = Screen.width * Screen.height;
-			aBuffer = new ComputeBuffer (resolutionArea*10, 16, ComputeBufferType.Append);
-			// Initialize head pointer buffer to magic value : 0
 
-			uint[] initialHeadArray = new uint[resolutionArea];
-			for (int i = 0; i < resolutionArea; i++)
-			{
-				initialHeadArray[i] =  0xFFFFFFFF;
-			}
-			
-			aHeadBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
-			aHeadBuffer.SetData(initialHeadArray);
-
-		}
-
+		CreateBuffers ();
 		if (volumeTexture == null)
 		{
 			volumeTexture = new RenderTexture (64, 64, 0, RenderTextureFormat.ARGBFloat);
@@ -188,7 +209,8 @@ public class MolScript : MonoBehaviour
 	private void ReleaseResources ()
 	{
 		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
-		if (aBuffer != null) aBuffer.Release(); aBuffer = null;
+		if (globalDataBuffer != null) globalDataBuffer.Dispose();
+		if (headBuffer != null) headBuffer.Dispose();
 		if (cbMols != null) cbMols.Release(); cbMols = null;
 		
 		if (volumeTexture != null) volumeTexture.Release(); volumeTexture = null;
@@ -227,12 +249,24 @@ public class MolScript : MonoBehaviour
 		*/
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		if (headBuffer != null)
+		{
+			headBuffer.SetData(initialHeadArray);
+		}
 		//matMC.SetBuffer ("atomPositions", cbPoints);
+
 		matMC.SetBuffer ("indices", cbIndices);
 		//matMC.SetTexture ("_dataFieldTex", densityTex);
 		matMC.SetTexture ("_dataFieldTex", volumeTexture);
+		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
+		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
+		//matMC.SetBuffer("_GlobalData", globalDataBuffer);
+		//matMC.SetBuffer("_HeadBuffer", headBuffer);
+		Graphics.SetRandomWriteTarget (1, globalDataBuffer);
+		Graphics.SetRandomWriteTarget (2, headBuffer);
 		matMC.SetPass(0);
 		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
+		Graphics.ClearRandomWriteTargets ();
 
 
 
