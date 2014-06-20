@@ -14,6 +14,8 @@ Shader "Custom/GSMarchingCubes"
 		Pass
 		{
 			Cull Off
+			ZWrite Off
+        	ZTest Always
 			Tags { "RenderType"="Opaque" }
 			LOD 200
 		
@@ -512,6 +514,7 @@ Shader "Custom/GSMarchingCubes"
 				}
 
 				// Fragment Shader -----------------------------------------------
+				[earlydepthstencil]
 				float4 FS_Main(FS_INPUT input) : COLOR
 				{
 					float dataStepSize = _dataSize;
@@ -536,9 +539,11 @@ Shader "Custom/GSMarchingCubes"
 					//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
 					float d = abs(dot(float3(0,0,-1),normal));
 					float2 screenUV = input.pos.xy / input.pos.w;
-			    	screenUV.x =   (screenUV.x + 1) * 0.5f;
-					screenUV.y = 1-(screenUV.y + 1) * 0.5f;
+					
+			    	//screenUV.x =   (screenUV.x + 1) * 0.5f;
+					//screenUV.y = 1-(screenUV.y + 1) * 0.5f;
 					WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
+					//discard;
 					return float4(d,d,d,1);
 					//return float4(1,1,1,1);
 					//return float4(normal,1);
@@ -551,11 +556,16 @@ Shader "Custom/GSMarchingCubes"
 		// Second pass
 		Pass
 		{
-			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+			ZWrite Off 
+			ZTest Always 
+			Cull Off 
+			Blend Off
+			Fog { Mode Off }
 
 			CGPROGRAM
 
 			#include "UnityCG.cginc"
+			#include "OIT.cginc"
 
 			#pragma only_renderers d3d11		
 			#pragma target 5.0
@@ -564,9 +574,8 @@ Shader "Custom/GSMarchingCubes"
 			#pragma fragment frag
 
 			sampler2D _InputTex;
-
-			AppendStructuredBuffer<float4> aBuffer : register(u1);
-
+			//StructuredBuffer<GlobalData> r_GlobalData : register(t0);
+			//Buffer<uint> r_HeadBuffer : register(t1);
 			struct v2f
 			{
 				float4 pos : SV_POSITION;
@@ -583,16 +592,21 @@ Shader "Custom/GSMarchingCubes"
 
 			float4 frag (v2f i) : COLOR0
 			{
-				float4 c = tex2D (_InputTex, i.uv);
-
-				[branch]
-				if (any(c > 0))
-				{
-					aBuffer.Append (c);
-				}
-
-				discard;
-				return c;
+				uint2 pixelCoordinates = uint2(i.uv * _ScreenParams.xy);
+				uint linearAddress = (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
+				uint node = _HeadBuffer.Load(linearAddress);
+				//uint node = r_HeadBuffer[linearAddress];
+				//float4 clr = float4(1,1,1,1);
+				float4 clr = float4(node,node,node,1);
+				
+//				if (node!=0xFFFFFFFF)
+//				{
+//					GlobalData data;
+//					data = r_GlobalData[node];
+//					//data = _GlobalData[node];
+//					clr = UnpackUintIntoFloat4(data.colour);
+//				}
+				return clr;
 			}
 
 			ENDCG

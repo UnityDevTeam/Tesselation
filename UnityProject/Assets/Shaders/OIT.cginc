@@ -9,6 +9,7 @@ struct GlobalData
 	uint previousNode;
 };
 
+RWByteAddressBuffer _GlobalCounter : register(u3);
 RWByteAddressBuffer _HeadBuffer : register(u2);
 RWStructuredBuffer<GlobalData> _GlobalData : register(u1);
 
@@ -78,7 +79,12 @@ void WriteOIT(float4 colour, float depth, float2 location)
 	uint linearAddress = 4 * (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
 
 	// This crashes unity.
-	uint previousNode = _GlobalData.IncrementCounter();
+	//uint previousNode = _GlobalData.IncrementCounter();
+	
+	uint previousNode;
+	_GlobalCounter.InterlockedAdd(0,1,previousNode);
+	
+  
 	
 	_HeadBuffer.InterlockedExchange(linearAddress, previousNode, Data.previousNode);
 

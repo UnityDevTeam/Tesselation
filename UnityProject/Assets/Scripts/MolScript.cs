@@ -17,9 +17,11 @@ public class MolScript : MonoBehaviour
 	//! a buffers
 	private ComputeBuffer globalDataBuffer;
 	private ComputeBuffer headBuffer;
-	private const int MAX_OVERDRAW = 5;
+	private ComputeBuffer globalCounter;
+	private const int MAX_OVERDRAW = 10;
 	private readonly int resolutionArea = Screen.width * Screen.height;
 	private uint[] initialHeadArray;
+	private uint[] zero_val;
 	//! a buffers
 
 	private ComputeBuffer cbMols;
@@ -40,6 +42,7 @@ public class MolScript : MonoBehaviour
 	private void CreateBuffers()
 	{
 		globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Counter);
+		//globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Raw);
 		GlobalData[] initialDataArray = new GlobalData[MAX_OVERDRAW * resolutionArea];
 		for (int i = 0; i < MAX_OVERDRAW * resolutionArea; i++)
 		{
@@ -54,9 +57,13 @@ public class MolScript : MonoBehaviour
 			initialHeadArray[i] =  0xFFFFFFFF;
 		}
 		
-		//headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
-		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Default);
+		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
 		headBuffer.SetData(initialHeadArray);
+		globalCounter = new ComputeBuffer(1, 4, ComputeBufferType.Raw);
+		zero_val = new uint[1];
+		zero_val[0] = 0;
+		globalCounter.SetData(zero_val);
+		Debug.Log ("resolutionArea" + resolutionArea);
 	}
 	
 
@@ -88,8 +95,8 @@ public class MolScript : MonoBehaviour
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
 			cbMols.SetData(molPositions);
 		}
-
-		CreateBuffers ();
+		if (globalDataBuffer==null)
+			CreateBuffers ();
 		if (volumeTexture == null)
 		{
 			volumeTexture = new RenderTexture (64, 64, 0, RenderTextureFormat.ARGBFloat);
@@ -208,14 +215,18 @@ public class MolScript : MonoBehaviour
 	
 	private void ReleaseResources ()
 	{
-		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
-		if (globalDataBuffer != null) globalDataBuffer.Dispose();
-		if (headBuffer != null) headBuffer.Dispose();
-		if (cbMols != null) cbMols.Release(); cbMols = null;
+		if (cbDrawArgs != null) cbDrawArgs.Dispose (); cbDrawArgs = null;
+		//a-buffers
+		if (globalDataBuffer != null) globalDataBuffer.Dispose(); globalDataBuffer = null;
+		if (headBuffer != null) headBuffer.Dispose(); headBuffer = null;
+		if (globalCounter != null) globalCounter.Dispose(); globalCounter = null;
+		//a-buffers
+
+		if (cbMols != null) cbMols.Dispose(); cbMols = null;
 		
 		if (volumeTexture != null) volumeTexture.Release(); volumeTexture = null;
 
-		if (cbIndices != null) cbIndices.Release(); cbIndices = null;
+		if (cbIndices != null) cbIndices.Dispose(); cbIndices = null;
 
 		Object.DestroyImmediate (matMC);
 	}
@@ -252,6 +263,7 @@ public class MolScript : MonoBehaviour
 		if (headBuffer != null)
 		{
 			headBuffer.SetData(initialHeadArray);
+			globalCounter.SetData(zero_val);
 		}
 		//matMC.SetBuffer ("atomPositions", cbPoints);
 
@@ -260,21 +272,26 @@ public class MolScript : MonoBehaviour
 		matMC.SetTexture ("_dataFieldTex", volumeTexture);
 		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
 		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
+		Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
 		//matMC.SetBuffer("_GlobalData", globalDataBuffer);
 		//matMC.SetBuffer("_HeadBuffer", headBuffer);
 		Graphics.SetRandomWriteTarget (1, globalDataBuffer);
 		Graphics.SetRandomWriteTarget (2, headBuffer);
+		Graphics.SetRandomWriteTarget (3, globalCounter);
 		matMC.SetPass(0);
 		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
-		Graphics.ClearRandomWriteTargets ();
 
-
+		//Graphics.ClearRandomWriteTargets ();
 
 	}
 
 	void OnRenderImage (RenderTexture source, RenderTexture destination){
 		//! iso-surface creation
-		Graphics.Blit (source, destination);
+		//Graphics.Blit (source, destination);
+		//matMC.SetBuffer ("r_headBuffer", headBuffer);
+		//matMC.SetBuffer ("r_GlobalData", globalDataBuffer);
+		Graphics.Blit (source, destination, matMC, 1);
+		Graphics.ClearRandomWriteTargets ();
 		//Graphics.Blit (this.mrtTex[0], destination);
 		/*
 		RenderTexture.active = null;
