@@ -540,8 +540,8 @@ Shader "Custom/GSMarchingCubes"
 					float d = abs(dot(float3(0,0,-1),normal));
 					float2 screenUV = input.pos.xy / input.pos.w;
 					
-			    	//screenUV.x =   (screenUV.x + 1) * 0.5f;
-					//screenUV.y = 1-(screenUV.y + 1) * 0.5f;
+			    	screenUV.x =   (screenUV.x + 1) * 0.5f;
+					screenUV.y = 1-(screenUV.y + 1) * 0.5f;
 					WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
 					//discard;
 					return float4(d,d,d,1);
@@ -593,8 +593,9 @@ Shader "Custom/GSMarchingCubes"
 			float4 frag (v2f i) : COLOR0
 			{
 				uint2 pixelCoordinates = uint2(i.uv * _ScreenParams.xy);
-				uint linearAddress = (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
-				uint node = _HeadBuffer.Load(linearAddress);
+				//uint linearAddress = (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
+				uint node = _HeadBuffer[pixelCoordinates];
+				//uint node = _HeadBuffer.Load(linearAddress);
 				//uint node = r_HeadBuffer[linearAddress];
 				//float4 clr = float4(1,1,1,1);
 				float4 clr = float4(node,node,node,1);

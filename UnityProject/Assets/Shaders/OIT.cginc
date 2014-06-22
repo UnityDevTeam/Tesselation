@@ -10,7 +10,8 @@ struct GlobalData
 };
 
 RWByteAddressBuffer _GlobalCounter : register(u3);
-RWByteAddressBuffer _HeadBuffer : register(u2);
+//RWByteAddressBuffer _HeadBuffer : register(u2);
+RWTexture2D<uint> _HeadBuffer : register(u2);
 RWStructuredBuffer<GlobalData> _GlobalData : register(u1);
 
 
@@ -76,7 +77,7 @@ void WriteOIT(float4 colour, float depth, float2 location)
 	GlobalData Data;
 
 	uint2 pixelCoordinates = uint2(location * _ScreenParams.xy);
-	uint linearAddress = 4 * (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
+	
 
 	// This crashes unity.
 	//uint previousNode = _GlobalData.IncrementCounter();
@@ -85,8 +86,9 @@ void WriteOIT(float4 colour, float depth, float2 location)
 	_GlobalCounter.InterlockedAdd(0,1,previousNode);
 	
   
-	
-	_HeadBuffer.InterlockedExchange(linearAddress, previousNode, Data.previousNode);
+	//uint linearAddress = 4 * (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
+	//_HeadBuffer.InterlockedExchange(linearAddress, previousNode, Data.previousNode);
+	InterlockedExchange(_HeadBuffer[pixelCoordinates],previousNode, Data.previousNode);
 
 	Data.colour = PackFloat4IntoUint(colour);
 	Data.depth = PackDepthIntoUint(depth);

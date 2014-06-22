@@ -16,7 +16,8 @@ public class MolScript : MonoBehaviour
 	private ComputeBuffer cbDrawArgs;
 	//! a buffers
 	private ComputeBuffer globalDataBuffer;
-	private ComputeBuffer headBuffer;
+	//private ComputeBuffer headBuffer;
+	private RenderTexture headBuffer;
 	private ComputeBuffer globalCounter;
 	private const int MAX_OVERDRAW = 10;
 	private readonly int resolutionArea = Screen.width * Screen.height;
@@ -51,6 +52,7 @@ public class MolScript : MonoBehaviour
 		globalDataBuffer.SetData(initialDataArray);
 		
 		// Initialize head pointer buffer to magic value : 0
+		/*
 		initialHeadArray = new uint[resolutionArea];
 		for (int i = 0; i < resolutionArea; i++)
 		{
@@ -59,6 +61,10 @@ public class MolScript : MonoBehaviour
 		
 		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
 		headBuffer.SetData(initialHeadArray);
+		*/
+		this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RInt);
+		this.headBuffer.enableRandomWrite = true;
+		this.headBuffer.Create(); 
 		globalCounter = new ComputeBuffer(1, 4, ComputeBufferType.Raw);
 		zero_val = new uint[1];
 		zero_val[0] = 0;
@@ -218,7 +224,8 @@ public class MolScript : MonoBehaviour
 		if (cbDrawArgs != null) cbDrawArgs.Dispose (); cbDrawArgs = null;
 		//a-buffers
 		if (globalDataBuffer != null) globalDataBuffer.Dispose(); globalDataBuffer = null;
-		if (headBuffer != null) headBuffer.Dispose(); headBuffer = null;
+		//if (headBuffer != null) headBuffer.Dispose(); headBuffer = null;
+		if (headBuffer != null) headBuffer.Release(); headBuffer = null;
 		if (globalCounter != null) globalCounter.Dispose(); globalCounter = null;
 		//a-buffers
 
@@ -258,20 +265,23 @@ public class MolScript : MonoBehaviour
 		mat.SetPass(2);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 		*/
-		RenderTexture.active = null;
-		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+
 		if (headBuffer != null)
 		{
-			headBuffer.SetData(initialHeadArray);
+			//headBuffer.SetData(initialHeadArray);
+			Graphics.SetRenderTarget (headBuffer);
+			GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 			globalCounter.SetData(zero_val);
 		}
 		//matMC.SetBuffer ("atomPositions", cbPoints);
-
+		RenderTexture.active = null;
+		//GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		matMC.SetBuffer ("indices", cbIndices);
 		//matMC.SetTexture ("_dataFieldTex", densityTex);
 		matMC.SetTexture ("_dataFieldTex", volumeTexture);
 		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
-		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
+		//Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
+		Shader.SetGlobalTexture("_HeadBuffer", headBuffer);
 		Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
 		//matMC.SetBuffer("_GlobalData", globalDataBuffer);
 		//matMC.SetBuffer("_HeadBuffer", headBuffer);
