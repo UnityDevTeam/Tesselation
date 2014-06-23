@@ -62,7 +62,8 @@ public class MolScript : MonoBehaviour
 		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
 		headBuffer.SetData(initialHeadArray);
 		*/
-		this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RInt);
+		//this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RInt);
+		this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
 		this.headBuffer.enableRandomWrite = true;
 		this.headBuffer.Create(); 
 		globalCounter = new ComputeBuffer(1, 4, ComputeBufferType.Raw);

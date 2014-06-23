@@ -49,6 +49,7 @@ Shader "Custom/GSMarchingCubes"
 					float2  tex0	: TEXCOORD0;
 					float3  normal  : NORMAL;
 					float3  tex3D   : TEXCOORD1;
+					float2  uv		: TEXCOORD2;
 				};
 
 
@@ -485,18 +486,21 @@ Shader "Custom/GSMarchingCubes"
 							pIn.tex3D = texA;
 							pIn.tex0 = float2(1.0f, 0.0f);
 							pIn.normal = normal;
+							pIn.uv = float2( 0.5, -0.5 ) * (pA.xy/pA.w) + float2(0.5,0.5);
 							triStream.Append(pIn);
 							
 							pIn.normal = normal;
 							pIn.pos = pC;
 							pIn.tex3D = texC;
 							pIn.tex0 = float2(1.0f, 0.0f);
+							pIn.uv = float2( 0.5, -0.5 ) * (pC.xy/pC.w) + float2(0.5,0.5);
 							triStream.Append(pIn);
 
 							pIn.pos = pB;
 							pIn.tex3D = texB;
 							pIn.tex0 = float2(1.0f, 0.0f);
 							pIn.normal = normal;
+							pIn.uv = float2( 0.5, -0.5 ) * (pB.xy/pB.w) + float2(0.5,0.5);
 							triStream.Append(pIn);
 							
 							triStream.RestartStrip();
@@ -504,6 +508,7 @@ Shader "Custom/GSMarchingCubes"
 							pIn.pos = float4(0,0,0,0);// + p[0].pos;
 							pIn.tex0 = float2(1.0f, 0.0f);
 							pIn.normal = float3(0,1,0);
+							pIn.uv = float2( 0.0, 0.0 );
 							triStream.Append(pIn);
 							triStream.Append(pIn);
 							triStream.Append(pIn);
@@ -538,12 +543,13 @@ Shader "Custom/GSMarchingCubes"
 
 					//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
 					float d = abs(dot(float3(0,0,-1),normal));
-					float2 screenUV = input.pos.xy / input.pos.w;
 					
-			    	screenUV.x =   (screenUV.x + 1) * 0.5f;
-					screenUV.y = 1-(screenUV.y + 1) * 0.5f;
+					float2 screenUV = input.pos.xy / input.pos.w;
+			    	screenUV.x =  (screenUV.x + 1) * 0.5f;
+					screenUV.y = 1.0-(screenUV.y + 1) * 0.5f;
+					//WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, input.uv);
 					WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
-					//discard;
+					discard;
 					return float4(d,d,d,1);
 					//return float4(1,1,1,1);
 					//return float4(normal,1);
