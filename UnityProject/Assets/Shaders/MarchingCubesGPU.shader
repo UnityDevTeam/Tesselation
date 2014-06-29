@@ -7,15 +7,17 @@ Shader "Custom/GSMarchingCubes"
 		_dataSize ("Data Field Texture Size", float) = 128 
 		_meshSize ("Mesh Cube Size", float) = 64 
 		_isoLevel ("isoLevel", Range(0.0, 1.0)) = 0.5
+		_MainTex ("", 2D) = "white" {}
 	}
 
 	SubShader 
 	{
 		Pass
 		{
-			Cull Off
-			ZWrite Off
-        	ZTest Always
+		    //Blend SrcAlpha OneMinusSrcAlpha
+			//Cull Off
+			//ZWrite Off
+        	//ZTest Always
 			Tags { "RenderType"="Opaque" }
 			LOD 200
 		
@@ -85,7 +87,6 @@ Shader "Custom/GSMarchingCubes"
 				GS_INPUT VS_Main(uint id : SV_VertexID)
 				{			    	
 				    float3 atomInfo = indices[id];	
-				    
 				    GS_INPUT output;			    				    			    				    
 				    output.pos = float4(atomInfo,1.0);		    
 				    return output;
@@ -521,7 +522,11 @@ Shader "Custom/GSMarchingCubes"
 				// Fragment Shader -----------------------------------------------
 				[earlydepthstencil]
 				float4 FS_Main(FS_INPUT input) : COLOR
+				//void FS_Main(FS_INPUT input)
 				{
+					InterlockedAdd(_GlobalCounter[0],1);
+					InterlockedAdd(_GlobalCounter[1],2);
+					InterlockedAdd(_GlobalCounter[2],3);
 					float dataStepSize = _dataSize;
 					float h2 = dataStepSize*2.0;
 					float3 position = input.tex3D;
@@ -548,8 +553,8 @@ Shader "Custom/GSMarchingCubes"
 			    	screenUV.x =  (screenUV.x + 1) * 0.5f;
 					screenUV.y = 1.0-(screenUV.y + 1) * 0.5f;
 					//WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, input.uv);
-					WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
-					discard;
+					//WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
+					//discard;
 					return float4(d,d,d,1);
 					//return float4(1,1,1,1);
 					//return float4(normal,1);
@@ -580,8 +585,10 @@ Shader "Custom/GSMarchingCubes"
 			#pragma fragment frag
 
 			sampler2D _InputTex;
-			//StructuredBuffer<GlobalData> r_GlobalData : register(t0);
-			//Buffer<uint> r_HeadBuffer : register(t1);
+//			StructuredBuffer<GlobalData> r_GlobalData : register(t0);
+//			Buffer<uint> r_HeadBuffer : register(t1);
+			StructuredBuffer<GlobalData> r_GlobalData;
+			Buffer<uint> r_HeadBuffer;
 			struct v2f
 			{
 				float4 pos : SV_POSITION;
@@ -592,27 +599,28 @@ Shader "Custom/GSMarchingCubes"
 			{
 				v2f o;
 				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
-				o.uv = v.texcoord;
+				o.uv = v.texcoord.xy;
 				return o;
 			}			
 
 			float4 frag (v2f i) : COLOR0
 			{
 				uint2 pixelCoordinates = uint2(i.uv * _ScreenParams.xy);
-				//uint linearAddress = (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
-				uint node = _HeadBuffer[pixelCoordinates];
+				float4 clr = tex2D(_InputTex,i.uv);
+				return clr;
+				uint linearAddress = (pixelCoordinates.y * _ScreenParams.x + pixelCoordinates.x);
+				//uint node = _HeadBuffer[pixelCoordinates];
 				//uint node = _HeadBuffer.Load(linearAddress);
-				//uint node = r_HeadBuffer[linearAddress];
-				//float4 clr = float4(1,1,1,1);
-				float4 clr = float4(node,node,node,1);
-				
-//				if (node!=0xFFFFFFFF)
-//				{
-//					GlobalData data;
-//					data = r_GlobalData[node];
-//					//data = _GlobalData[node];
-//					clr = UnpackUintIntoFloat4(data.colour);
-//				}
+				uint node = r_HeadBuffer[linearAddress];
+				//float4 clr = float4(0,1,0,1);
+				//float4 clr = float4(node,node,node,1);
+				if (node!=0xFFFFFFFF)
+				{
+					GlobalData data;
+					data = r_GlobalData[node];
+					//data = _GlobalData[node];
+					clr = float4(1,0,0,1);//UnpackUintIntoFloat4(data.colour);
+				}
 				return clr;
 			}
 
