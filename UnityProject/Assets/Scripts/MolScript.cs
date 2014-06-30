@@ -23,6 +23,7 @@ public class MolScript : MonoBehaviour
 	private readonly int resolutionArea = Screen.width * Screen.height;
 	private uint[] initialHeadArray;
 	private uint[] zero_val;
+	private ComputeBuffer triangleOutput;
 	//! a buffers
 
 	private ComputeBuffer cbMols;
@@ -42,8 +43,8 @@ public class MolScript : MonoBehaviour
 
 	private void CreateBuffers()
 	{
-		globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Counter);
-		//globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Raw);
+		//globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Counter);
+		globalDataBuffer = new ComputeBuffer(MAX_OVERDRAW * resolutionArea, 12, ComputeBufferType.Raw);
 		GlobalData[] initialDataArray = new GlobalData[MAX_OVERDRAW * resolutionArea];
 		for (int i = 0; i < MAX_OVERDRAW * resolutionArea; i++)
 		{
@@ -62,15 +63,17 @@ public class MolScript : MonoBehaviour
 		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
 		headBuffer.SetData(initialHeadArray);
 
+		//triangleOutput = new ComputeBuffer (MAX_OVERDRAW * Screen.width * Screen.height, 12, ComputeBufferType.Append); 
 		//this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RInt);
 		//this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
 		//this.headBuffer.enableRandomWrite = true;
 		//this.headBuffer.Create(); 
-		globalCounter = new ComputeBuffer(3, 4, ComputeBufferType.Raw);
-		zero_val = new uint[3];
-		zero_val[0] = 0;
-		zero_val[1] = 0;
-		zero_val[2] = 0;
+		globalCounter = new ComputeBuffer(4, 4, ComputeBufferType.Raw);
+		zero_val = new uint[4];
+		zero_val[0] = 4;
+		zero_val[1] = 10;
+		zero_val[2] = 13;
+		zero_val[3] = 15;
 		globalCounter.SetData(zero_val);
 		Debug.Log ("resolutionArea" + resolutionArea);
 	}
@@ -78,6 +81,7 @@ public class MolScript : MonoBehaviour
 
 	private void CreateResources ()
 	{
+		/*
 		if (cbDrawArgs == null)
 		{
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
@@ -88,7 +92,7 @@ public class MolScript : MonoBehaviour
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
 		}
-
+		*/
 		if (cbMols == null)
 		{
 			molPositions = new Vector4[molCount];
@@ -238,6 +242,9 @@ public class MolScript : MonoBehaviour
 
 		if (cbIndices != null) cbIndices.Dispose(); cbIndices = null;
 
+		if (triangleOutput != null) triangleOutput.Dispose(); triangleOutput = null;
+
+
 		Object.DestroyImmediate (matMC);
 	}
 	
@@ -298,27 +305,38 @@ public class MolScript : MonoBehaviour
 		RenderTexture.active = null;
 		//GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		matMC.SetBuffer ("indices", cbIndices);
+		//matMC.SetBuffer ("triangleOutput", this.triangleOutput);
 		//matMC.SetTexture ("_dataFieldTex", densityTex);
 		matMC.SetTexture ("_dataFieldTex", volumeTexture);
 		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
 		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
 		//Shader.SetGlobalTexture("_HeadBuffer", headBuffer);
-		Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
+		//Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
 //		matMC.SetBuffer("_GlobalData", globalDataBuffer);
 //		matMC.SetBuffer("_HeadBuffer", headBuffer);
-		//matMC.SetBuffer("_GlobalCounter", globalCounter);
+		matMC.SetBuffer("_GlobalCounter", globalCounter);
 		Graphics.ClearRandomWriteTargets ();
 		Graphics.SetRandomWriteTarget (1, globalDataBuffer);
 		Graphics.SetRandomWriteTarget (2, headBuffer);
 		Graphics.SetRandomWriteTarget (3, globalCounter);
+		//Graphics.SetRandomWriteTarget (5, triangleOutput); 
 		matMC.SetPass(0);
 		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
-		uint[] _counter=new uint[3];
-		globalCounter.GetData (_counter);
-		Debug.Log (_counter[0]);
-		Debug.Log (_counter[1]);
-		Debug.Log (_counter[2]);
 		Graphics.ClearRandomWriteTargets ();
+		uint[] _counter=new uint[4];
+		globalCounter.GetData (_counter);
+		Debug.Log ("count[0]"+_counter[0]);
+		Debug.Log ("count[1]"+_counter[1]);
+		Debug.Log ("count[2]"+_counter[2]);
+		Debug.Log ("count[2]"+_counter[3]);
+		//Graphics.ClearRandomWriteTargets ();
+//		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 
+//		int[] da =new int[4];
+//		cbDrawArgs.GetData (da);
+//		Debug.Log ("da[0]"+da[0]);
+//		Debug.Log ("da[1]"+da[1]);
+//		Debug.Log ("da[2]"+da[2]);
+//		Debug.Log ("da[3]"+da[2]);
 
 
 	}

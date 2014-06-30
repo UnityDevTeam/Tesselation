@@ -67,6 +67,7 @@ Shader "Custom/GSMarchingCubes"
 				float _dataSize;
 				float _meshSize;
 				StructuredBuffer<float3> indices;
+				//AppendStructuredBuffer<float3> triangleOutput : register(u5);
 
 				// **************************************************************
 				// Shader Programs												*
@@ -524,9 +525,15 @@ Shader "Custom/GSMarchingCubes"
 				float4 FS_Main(FS_INPUT input) : COLOR
 				//void FS_Main(FS_INPUT input)
 				{
-					InterlockedAdd(_GlobalCounter[0],1);
-					InterlockedAdd(_GlobalCounter[1],2);
-					InterlockedAdd(_GlobalCounter[2],3);
+					//_GlobalCounter[0]=3;
+//					InterlockedAdd(_GlobalCounter[0],1);
+//					InterlockedAdd(_GlobalCounter[0],2);
+//					InterlockedAdd(_GlobalCounter[0],3);
+					uint ov;
+					_GlobalCounter.InterlockedAdd(0,1,ov);
+					_GlobalCounter.InterlockedAdd(4,2,ov);
+					_GlobalCounter.InterlockedAdd(8,3,ov);
+					//triangleOutput.Append(float3(input.pos.xyz));
 					float dataStepSize = _dataSize;
 					float h2 = dataStepSize*2.0;
 					float3 position = input.tex3D;
