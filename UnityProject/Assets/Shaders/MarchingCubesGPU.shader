@@ -531,43 +531,11 @@ Shader "Custom/GSMarchingCubes"
 					float _obscurence =  exp(-0.01f*dist);
 					float cosR = 1.0;
 					float cosRD = dot(gf,normal);
-					/*
-					if (dist<2.0*SR && f<0.0)
-					{
-						float cosRD = dot(gf,normal);
-						//float cosR = 1.0f/(1.0f+3.0f*exp(5.0f*cosRD));
-						//float cosR = 1.0f/(1.0f+exp(20.0f*cosRD-15.0f));
-						cosR = 1.0f/(1.0f+exp(20.0f*cosRD-15.0f));
-					}
-					*/
-				#ifdef FUNC_GAUSS	
 					cosR = 1.0f/(1.0f+exp(8.0f*cosRD-3.0f));
 					//cosR=1.0;
 					_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
-				#ifdef BUNNEL_FUNC
-					//cosR = cosRD;
-					cosR=sin(1.2f*cosRD);
-					//float _t = (1.0*SR)/(1.0f+exp(-10.0f*f-5.0));
-					float _t = (SR)/(1.0f+exp(-10.0f*f-3.0));
-					//if (f>0.0) _t*=10.0;
-					_obscurence = 1.0-(cosR*dist) / sqrt(_t*_t+dist*dist);
-				#endif //BUNNEL_FUNC
-				#endif //FUNC_GAUSS
-				#if defined(FUNC_VDW) || defined(FUNC_BLEND)		
-					_obscurence = (cosR*_obscurence)/(1.0f+20.0f*exp(-5.0f*f-5.0));
-				#endif
-					
 					return _obscurence;
 				}
-
-
-				
-				float OcclusionFactor(float3 p)
-				{
-					
-				}
-				
-				
 				
 				float3 ComputeGradient(float3 position, float3 dataStep, float h2)
 				{
@@ -577,6 +545,33 @@ Shader "Custom/GSMarchingCubes"
 									(SampleData3(position+float3(0,0,dataStep.z)).x - SampleData3(position+float3(0,0,-dataStep.z)).x)/h2
 									);
 					return grad;
+				}
+				
+				float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
+				{
+						float fmin=-0.5;
+						float t=2.0*dataStep;
+						float ao=0.0;
+						int samplesCount=0;
+						for (int i=0;i<steps;i++,t+=dataStep)
+						{
+							float3 x = p - t*normal;
+							float xpl = length(x-p);
+							float3 xpv = normalize(p-x);
+							float3 grad = ComputeGradient(x,dataStep,h2);
+							float f = SampleData3(x).x;
+							if (f>fmin)
+							{
+								float gradl = length(grad);
+								grad = grad/gradl;
+								float aonow=sin(1.5*dot(xpv,normal))*compute_obscurance(xpv,xpl,grad,f);
+								ao+=aonow;
+								samplesCount++;
+							} 
+						}
+						if (samplesCount>0)
+							return clamp(ao/float(samplesCount),0,1);
+						return 0;
 				}
 				
 				[earlydepthstencil]
@@ -605,7 +600,8 @@ Shader "Custom/GSMarchingCubes"
 					float3 normal = normalize(grad);
 					normal = mul(_Object2World,normal);
 					normal = normalize(normal);
-					
+					float ao = OcclusionFactor(position, 5, normal, dataStep, h2);
+					ao=1.0-ao;
 					float pi = 3.14159265;
 					float3 dir = normalize(position - float3(0.5,0.5,0.5));
 					float u = (atan2(dir.z,dir.x)+pi)/(2.0 * pi); 
@@ -620,7 +616,8 @@ Shader "Custom/GSMarchingCubes"
 					//WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, input.uv);
 					//WriteOIT(float4(d,d,d,1), input.pos.z/input.pos.w, screenUV);
 					//discard;
-					return float4(d,d,d,1);
+					//return float4(d,d,d,1);
+					return float4(ao,ao,ao,1);
 					//return float4(1,1,1,1);
 					//return float4(normal,1);
 					//return _SpriteTex.Sample(sampler_SpriteTex, float2(u,v))  * saturate(0.5 + normal.y * 0.5) ;
