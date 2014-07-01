@@ -521,6 +521,64 @@ Shader "Custom/GSMarchingCubes"
 				}
 
 				// Fragment Shader -----------------------------------------------
+				
+				float compute_obscurance(float3 normal, //surface normal
+						  				 float dist,	//distance of the sample from the surface point
+						  				 float3 gf, 	//gradient at the sample
+						  				 float f)		//function value at the sample
+				{
+					//float _obscurence =  exp(-pow_param.y*dist);
+					float _obscurence =  exp(-0.01f*dist);
+					float cosR = 1.0;
+					float cosRD = dot(gf,normal);
+					/*
+					if (dist<2.0*SR && f<0.0)
+					{
+						float cosRD = dot(gf,normal);
+						//float cosR = 1.0f/(1.0f+3.0f*exp(5.0f*cosRD));
+						//float cosR = 1.0f/(1.0f+exp(20.0f*cosRD-15.0f));
+						cosR = 1.0f/(1.0f+exp(20.0f*cosRD-15.0f));
+					}
+					*/
+				#ifdef FUNC_GAUSS	
+					cosR = 1.0f/(1.0f+exp(8.0f*cosRD-3.0f));
+					//cosR=1.0;
+					_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
+				#ifdef BUNNEL_FUNC
+					//cosR = cosRD;
+					cosR=sin(1.2f*cosRD);
+					//float _t = (1.0*SR)/(1.0f+exp(-10.0f*f-5.0));
+					float _t = (SR)/(1.0f+exp(-10.0f*f-3.0));
+					//if (f>0.0) _t*=10.0;
+					_obscurence = 1.0-(cosR*dist) / sqrt(_t*_t+dist*dist);
+				#endif //BUNNEL_FUNC
+				#endif //FUNC_GAUSS
+				#if defined(FUNC_VDW) || defined(FUNC_BLEND)		
+					_obscurence = (cosR*_obscurence)/(1.0f+20.0f*exp(-5.0f*f-5.0));
+				#endif
+					
+					return _obscurence;
+				}
+
+
+				
+				float OcclusionFactor(float3 p)
+				{
+					
+				}
+				
+				
+				
+				float3 ComputeGradient(float3 position, float3 dataStep, float h2)
+				{
+					float3 grad = float3(
+									(SampleData3(position + float3(dataStep.x, 0, 0)).x - SampleData3(position+float3(-dataStep.x, 0, 0)).x)/h2, 
+									(SampleData3(position+float3(0, dataStep.y, 0)).x - SampleData3(position+float3(0, -dataStep.y, 0)).x)/h2, 
+									(SampleData3(position+float3(0,0,dataStep.z)).x - SampleData3(position+float3(0,0,-dataStep.z)).x)/h2
+									);
+					return grad;
+				}
+				
 				[earlydepthstencil]
 				float4 FS_Main(FS_INPUT input) : COLOR
 				//void FS_Main(FS_INPUT input)
