@@ -29,6 +29,7 @@ public class MolScript : MonoBehaviour
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
 	public ComputeShader cs;
+	public ComputeShader csMC;
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
@@ -63,9 +64,7 @@ public class MolScript : MonoBehaviour
 		headBuffer = new ComputeBuffer(resolutionArea, 4, ComputeBufferType.Raw);
 		headBuffer.SetData(initialHeadArray);
 
-		//triangleOutput = new ComputeBuffer (MAX_OVERDRAW * Screen.width * Screen.height, 12, ComputeBufferType.Append); 
 		//this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RInt);
-		//this.headBuffer = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32);
 		//this.headBuffer.enableRandomWrite = true;
 		//this.headBuffer.Create(); 
 		globalCounter = new ComputeBuffer(4, 4, ComputeBufferType.Raw);
@@ -77,11 +76,16 @@ public class MolScript : MonoBehaviour
 		globalCounter.SetData(zero_val);
 		Debug.Log ("resolutionArea" + resolutionArea);
 	}
+
+	private void CreateTriangleBuffer()
+	{
+
+	}
 	
 
 	private void CreateResources ()
 	{
-		/*
+
 		if (cbDrawArgs == null)
 		{
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
@@ -92,7 +96,7 @@ public class MolScript : MonoBehaviour
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
 		}
-		*/
+
 		if (cbMols == null)
 		{
 			molPositions = new Vector4[molCount];
@@ -108,8 +112,13 @@ public class MolScript : MonoBehaviour
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
 			cbMols.SetData(molPositions);
 		}
+		/*
 		if (globalDataBuffer==null)
 			CreateBuffers ();
+		*/
+		if (triangleOutput==null)
+			triangleOutput = new ComputeBuffer (100000, 24, ComputeBufferType.Append); 
+
 		if (volumeTexture == null)
 		{
 			volumeTexture = new RenderTexture (64, 64, 0, RenderTextureFormat.ARGBFloat);
@@ -223,6 +232,16 @@ public class MolScript : MonoBehaviour
 		cs.SetTexture (0, "Result", volumeTexture);
 		cs.Dispatch (0, 8,8,8);
 
+	}
+
+	private void ComputeMC(Vector3 dx,Vector3 min)
+	{
+		cs.SetVector ("dx", dx);
+		cs.SetVector ("_gridRes", new Vector3(64,64,64));
+		cs.SetFloat("_isoLevel", 0.5f);
+		cs.SetTexture(0,"_dataFieldTex", volumeTexture);
+		cs.SetBuffer (0, "trianglesOut", this.triangleOutput);
+		cs.Dispatch (0, 8,8,8);
 	}
 
 	
