@@ -7,7 +7,7 @@ struct GlobalTriangle
 	float3 nml[3];
 };
 
-AppendStructuredBuffer<GlobalTriangle> trianglesOut;
+AppendStructuredBuffer<GlobalTriangle> trianglesOut : register(u0);
 sampler3D _dataFieldTex;
 //int3 _gridRes;
 //float4x4 _VP;

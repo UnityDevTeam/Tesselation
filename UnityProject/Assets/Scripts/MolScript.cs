@@ -6,9 +6,11 @@ public class MolScript : MonoBehaviour
 	public int molCount = 100;
 	//public Shader shader;
 	public Shader shaderMC;
+	public Shader shaderTriangles;
 	
-	private Material mat;
+	//private Material mat;
 	private Material matMC;
+	private Material matTriangles;
 	private Texture3D densityTex;	
 	
 	private RenderTexture volumeTexture;
@@ -170,12 +172,20 @@ public class MolScript : MonoBehaviour
 			}
 			cbIndices = new ComputeBuffer (indices.Length, 12); 
 			cbIndices.SetData(indices);
+
+			this.ComputeMC(dx,min);
 		}
 		
 				
 		if (matMC == null)
 		{
 			matMC = new Material(shaderMC);
+			//matMC.hideFlags = HideFlags.HideAndDontSave;
+		}
+
+		if (matTriangles == null)
+		{
+			matTriangles = new Material(shaderTriangles);
 			//matMC.hideFlags = HideFlags.HideAndDontSave;
 		}
 	}
@@ -236,12 +246,14 @@ public class MolScript : MonoBehaviour
 
 	private void ComputeMC(Vector3 dx,Vector3 min)
 	{
-		cs.SetVector ("dx", dx);
-		cs.SetVector ("_gridRes", new Vector3(64,64,64));
-		cs.SetFloat("_isoLevel", 0.5f);
-		cs.SetTexture(0,"_dataFieldTex", volumeTexture);
-		cs.SetBuffer (0, "trianglesOut", this.triangleOutput);
-		cs.Dispatch (0, 8,8,8);
+		csMC.SetVector ("dx", dx);
+		csMC.SetVector ("_gridRes", new Vector3(64,64,64));
+		csMC.SetFloat("_isoLevel", 0.5f);
+		csMC.SetTexture(0,"_dataFieldTex", this.volumeTexture);
+		csMC.SetBuffer (0, "trianglesOut", this.triangleOutput);
+		Graphics.SetRandomWriteTarget (0, this.triangleOutput);
+		csMC.Dispatch (0, 8,8,8);
+		ComputeBuffer.CopyCount (this.triangleOutput, cbDrawArgs, 0); 
 	}
 
 	
@@ -285,6 +297,49 @@ public class MolScript : MonoBehaviour
 //		}
 //	}
 
+
+	void RenderToFragmentList()
+	{
+		if (headBuffer != null)
+		{
+			headBuffer.SetData(initialHeadArray);
+			//			Graphics.SetRenderTarget (headBuffer);
+			//			GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+			globalCounter.SetData(zero_val);
+		} else
+		{
+			Debug.LogWarning("Head buffer is empty.");
+		}
+		
+		//matMC.SetBuffer ("atomPositions", cbPoints);
+		RenderTexture.active = null;
+		//GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		matMC.SetBuffer ("indices", cbIndices);
+		//matMC.SetBuffer ("triangleOutput", this.triangleOutput);
+		//matMC.SetTexture ("_dataFieldTex", densityTex);
+		matMC.SetTexture ("_dataFieldTex", volumeTexture);
+		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
+		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
+		//Shader.SetGlobalTexture("_HeadBuffer", headBuffer);
+		//Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
+		//		matMC.SetBuffer("_GlobalData", globalDataBuffer);
+		//		matMC.SetBuffer("_HeadBuffer", headBuffer);
+		matMC.SetBuffer("_GlobalCounter", globalCounter);
+		Graphics.ClearRandomWriteTargets ();
+		Graphics.SetRandomWriteTarget (1, globalDataBuffer);
+		Graphics.SetRandomWriteTarget (2, headBuffer);
+		Graphics.SetRandomWriteTarget (3, globalCounter);
+		//Graphics.SetRandomWriteTarget (5, triangleOutput); 
+		matMC.SetPass(0);
+		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
+		Graphics.ClearRandomWriteTargets ();
+		uint[] _counter=new uint[4];
+		globalCounter.GetData (_counter);
+		Debug.Log ("count[0]"+_counter[0]);
+		Debug.Log ("count[1]"+_counter[1]);
+		Debug.Log ("count[2]"+_counter[2]);
+		Debug.Log ("count[2]"+_counter[3]);
+	}
 	
 	void OnPostRender()
 	{
@@ -304,50 +359,13 @@ public class MolScript : MonoBehaviour
 		/*
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		mat.SetBuffer ("atomPositions", cbPoints);
-		mat.SetPass(2);
-		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 		*/
+		matTriangles.SetBuffer ("triangles", this.triangleOutput);
+		matTriangles.SetPass(0);
+		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 
-		if (headBuffer != null)
-		{
-			headBuffer.SetData(initialHeadArray);
-//			Graphics.SetRenderTarget (headBuffer);
-//			GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-			globalCounter.SetData(zero_val);
-		} else
-		{
-			Debug.LogWarning("Head buffer is empty.");
-		}
 
-		//matMC.SetBuffer ("atomPositions", cbPoints);
-		RenderTexture.active = null;
-		//GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
-		matMC.SetBuffer ("indices", cbIndices);
-		//matMC.SetBuffer ("triangleOutput", this.triangleOutput);
-		//matMC.SetTexture ("_dataFieldTex", densityTex);
-		matMC.SetTexture ("_dataFieldTex", volumeTexture);
-		Shader.SetGlobalBuffer("_GlobalData", globalDataBuffer);
-		Shader.SetGlobalBuffer("_HeadBuffer", headBuffer);
-		//Shader.SetGlobalTexture("_HeadBuffer", headBuffer);
-		//Shader.SetGlobalBuffer("_GlobalCounter", globalCounter);
-//		matMC.SetBuffer("_GlobalData", globalDataBuffer);
-//		matMC.SetBuffer("_HeadBuffer", headBuffer);
-		matMC.SetBuffer("_GlobalCounter", globalCounter);
-		Graphics.ClearRandomWriteTargets ();
-		Graphics.SetRandomWriteTarget (1, globalDataBuffer);
-		Graphics.SetRandomWriteTarget (2, headBuffer);
-		Graphics.SetRandomWriteTarget (3, globalCounter);
-		//Graphics.SetRandomWriteTarget (5, triangleOutput); 
-		matMC.SetPass(0);
-		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
-		Graphics.ClearRandomWriteTargets ();
-		uint[] _counter=new uint[4];
-		globalCounter.GetData (_counter);
-		Debug.Log ("count[0]"+_counter[0]);
-		Debug.Log ("count[1]"+_counter[1]);
-		Debug.Log ("count[2]"+_counter[2]);
-		Debug.Log ("count[2]"+_counter[3]);
+
 		//Graphics.ClearRandomWriteTargets ();
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 
 //		int[] da =new int[4];
