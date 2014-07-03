@@ -9,27 +9,19 @@ struct GlobalTriangle
 
 AppendStructuredBuffer<GlobalTriangle> trianglesOut : register(u0);
 sampler3D _dataFieldTex;
-//int3 _gridRes;
-//float4x4 _VP;
-//				Texture2D _SpriteTex;
-//				SamplerState sampler_SpriteTex;
-const float _dataSize=128;
-const float _meshSize=64;
-const int3 _gridRes = int3(64,64,64);
-const float _isoLevel = 0.5;
+//static const float _dataSize=128;
+//static const float _meshSize=64;
+//static const int3 _gridRes = int3(64,64,64);
+//static const float _isoLevel = 0.5;
+#define _dataSize 128.0
+#define _meshSize 64.0
+#define _isoLevel 0.5
 
 float SampleData( float4 pPosition  ){
-	//float3 sampleloc = pPosition.xyz - float3(0.5,0.5,0.5);
-	//return sqrt(dot(sampleloc,sampleloc));
 	return tex3Dlod(_dataFieldTex,float4(pPosition.xyz,0)).x;	
-	//return tex3D(_dataFieldTex,pPosition.xyz).x;	
-	
 }
 float SampleData3( float3 p){
-	//float3 sampleloc = p - float3(0.5,0.5,0.5);
-	//return sqrt(dot(sampleloc,sampleloc));
 	return tex3Dlod(_dataFieldTex,float4(p.xyz,0)).x;	
-	//return tex3D(_dataFieldTex,p.xyz).x;
 }
 
 float3 ComputeGradient(float3 position, float3 dataStep, float h2)
@@ -58,17 +50,17 @@ void evalCube(float4 pos)
 		float4( halfSize, -halfSize,  halfSize, 0)		// RB  7
 	};
 
-	float4 offset = float4(0.5,0.5,0.5,0.0);//Move cube pos from 0-1 to -0.5-0.5
+	const float4 _offset = float4(0.5,0.5,0.5,0.0);//Move cube pos from 0-1 to -0.5-0.5
 	//float4 offset = float4(0.0,0.0,0.0,0.0);//Move cube pos from 0-1 to -0.5-0.5
 	const float weights[8] = {
-		SampleData(pos + cubeVerts[0] + offset),
-		SampleData(pos + cubeVerts[1] + offset),
-		SampleData(pos + cubeVerts[2] + offset),
-		SampleData(pos + cubeVerts[3] + offset),
-		SampleData(pos + cubeVerts[4] + offset),
-		SampleData(pos + cubeVerts[5] + offset),
-		SampleData(pos + cubeVerts[6] + offset),
-		SampleData(pos + cubeVerts[7] + offset)
+		SampleData(pos + cubeVerts[0] + _offset),
+		SampleData(pos + cubeVerts[1] + _offset),
+		SampleData(pos + cubeVerts[2] + _offset),
+		SampleData(pos + cubeVerts[3] + _offset),
+		SampleData(pos + cubeVerts[4] + _offset),
+		SampleData(pos + cubeVerts[5] + _offset),
+		SampleData(pos + cubeVerts[6] + _offset),
+		SampleData(pos + cubeVerts[7] + _offset)
 	};
 
 	int cubeIndex = 
@@ -357,9 +349,11 @@ void evalCube(float4 pos)
 			};
 					
 					//int numpolys = case_to_numpolys[cubeIndex];
-				
+		
 	float dataStepSize = _dataSize;
 	float h2 = dataStepSize*2.0;
+	[loop] 
+	[allow_uav_condition] 
 	for( int i = 0; i < 5; i++ ){
 		int4 vertlistIndices = edge_connect_list[cubeIndex * 5 + i];
 		if(vertlistIndices.x != -1) {	
@@ -367,21 +361,21 @@ void evalCube(float4 pos)
 			int vb = edge_to_verts[vertlistIndices.x].y;
 			float amount = (_isoLevel - weights[va]) / (weights[vb] - weights[va]);
 			float4 worldPosA = lerp( pos + cubeVerts[va],  pos + cubeVerts[vb], amount);
-			float4 texA = worldPosA+offset;
+			float4 texA = worldPosA+_offset;
 			float3 gA = ComputeGradient(texA.xyz,dataStepSize, h2);
 			
 			va = edge_to_verts[vertlistIndices.y].x;
 			vb = edge_to_verts[vertlistIndices.y].y;
 			amount = (_isoLevel - weights[va]) / (weights[vb] - weights[va]);
 			float4 worldPosB = lerp( pos + cubeVerts[va],  pos + cubeVerts[vb], amount);
-			float4 texB = worldPosB+offset;
+			float4 texB = worldPosB+_offset;
 			float3 gB = ComputeGradient(texB.xyz,dataStepSize, h2);
 			
 			va = edge_to_verts[vertlistIndices.z].x;
 			vb = edge_to_verts[vertlistIndices.z].y;
 			amount = (_isoLevel - weights[va]) / (weights[vb] - weights[va]);
 			float4 worldPosC = lerp( pos + cubeVerts[va],  pos + cubeVerts[vb], amount);
-			float4 texC = worldPosC+offset;
+			float4 texC = worldPosC+_offset;
 			float3 gC = ComputeGradient(texC.xyz,dataStepSize, h2);
 			
 			GlobalTriangle outTriangle;
@@ -401,8 +395,18 @@ void evalCube(float4 pos)
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
 	float3 vol_pos = float3(id.x,id.y,id.z);
-	float3 deltaStep = float3 (1.0f / (float) (_gridRes.x),1.0f/(float) (_gridRes.y),1.0f/(float) (_gridRes.z));
+	float3 deltaStep = float3 (1.0f / (float) (64.0),1.0f/(float) (64.0),1.0f/(float) (64.0));
 	float3 _hs = float3(0.5f,0.5f,0.5f);
 	float3 pos=vol_pos*deltaStep-_hs;
 	evalCube(float4(pos,0));
+	/*
+	GlobalTriangle outTriangle;
+	outTriangle.pt[0]=pos;
+	outTriangle.pt[1]=pos;
+	outTriangle.pt[2]=pos;
+	outTriangle.nml[0]=pos;
+	outTriangle.nml[1]=pos;
+	outTriangle.nml[2]=pos;
+	trianglesOut.Append(outTriangle);
+	*/
 }

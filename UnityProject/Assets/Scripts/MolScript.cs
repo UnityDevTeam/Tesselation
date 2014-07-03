@@ -43,6 +43,12 @@ public class MolScript : MonoBehaviour
 		uint previousNode;
 	}
 
+	struct GlobalTriangle
+	{
+		Vector3[] pt;
+		Vector3[] nml;
+	};
+
 
 	private void CreateBuffers()
 	{
@@ -91,12 +97,14 @@ public class MolScript : MonoBehaviour
 		if (cbDrawArgs == null)
 		{
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
+			/*
 			var args = new int[4];
 			args[0] = 0;
 			args[1] = 1;
 			args[2] = 0;
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
+			*/
 		}
 
 		if (cbMols == null)
@@ -119,7 +127,7 @@ public class MolScript : MonoBehaviour
 			CreateBuffers ();
 		*/
 		if (triangleOutput==null)
-			triangleOutput = new ComputeBuffer (100000, 24, ComputeBufferType.Append); 
+			triangleOutput = new ComputeBuffer (300000, 24, ComputeBufferType.Append); 
 
 		if (volumeTexture == null)
 		{
@@ -254,6 +262,14 @@ public class MolScript : MonoBehaviour
 		Graphics.SetRandomWriteTarget (0, this.triangleOutput);
 		csMC.Dispatch (0, 8,8,8);
 		ComputeBuffer.CopyCount (this.triangleOutput, cbDrawArgs, 0); 
+		var count = new int[4];
+		cbDrawArgs.GetData (count);
+		Debug.Log ("[0]"+count[0]);
+		Debug.Log ("[1]"+count[1]);
+		Debug.Log ("[2]"+count[2]);
+		Debug.Log ("[3]"+count[3]);
+		
+		
 	}
 
 	
@@ -360,9 +376,12 @@ public class MolScript : MonoBehaviour
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		*/
+
 		matTriangles.SetBuffer ("triangles", this.triangleOutput);
 		matTriangles.SetPass(0);
-		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
+		//Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
+		Graphics.DrawProcedural(MeshTopology.Points, 1000);
+
 
 
 

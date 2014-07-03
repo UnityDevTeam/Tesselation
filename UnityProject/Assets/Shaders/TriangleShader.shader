@@ -30,7 +30,7 @@
 		StructuredBuffer<GlobalTriangle> triangles;
 		struct vs2gs
 		{
-			//float4 pos : SV_POSITION;
+			float4 pos : SV_POSITION;
 			uint idt : UINT;
 		};
 			
@@ -48,7 +48,8 @@
 
 		vs2gs VS(uint id : SV_VertexID)
 		{
-		    vs2gs output;		
+		    vs2gs output;	
+		    output.pos = float4(1,1,1,1);	
 		    output.idt = id;
 		    return output;
 		}
@@ -69,7 +70,18 @@
 			pointStream.Append(output);
 			
 			output.pos = mul(UNITY_MATRIX_MVP, float4(gt.pt[2],1.0));							
-			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[2],0.0));							
+			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[2],0.0));
+
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(0,0,0,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[0],0.0));							
+//			pointStream.Append(output);
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(1,0,0,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[1],0.0));							
+//			pointStream.Append(output);
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(0,0,1,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[2],0.0));							
 			pointStream.Append(output);
 			pointStream.RestartStrip();	
 		}
@@ -89,5 +101,50 @@
 			
 		ENDCG				
 	} 
+	// Second pass
+		Pass
+		{	
+			ZWrite On 	
+			CGPROGRAM	
+
+			#include "UnityCG.cginc"			
+			
+			#pragma vertex VS			
+			#pragma fragment FS							
+																																									
+			struct GlobalTriangle
+			{
+				float3 pt[3];
+				float3 nml[3];
+			};
+
+		
+													
+			StructuredBuffer<GlobalTriangle> triangles;
+			
+			struct vs2fs
+			{
+				float4 pos : SV_POSITION;
+			};
+			
+
+			vs2fs VS(uint id : SV_VertexID)
+			{
+			    GlobalTriangle triangleInfo = triangles[id];	
+			    
+			    vs2fs output;	
+			    output.pos = mul (UNITY_MATRIX_MVP, float4(triangleInfo.pt[0].xyz, 1));	    
+			    //output.pos = mul (UNITY_MATRIX_MVP, float4(0.0,0.0,0.0, 1));	    
+			    return output;
+			}
+			
+			float4 FS (vs2fs input) : COLOR
+			{					
+				return float4(1,1,1,1);
+			}
+			
+			ENDCG					
+		}	 
+	
 }
 }
