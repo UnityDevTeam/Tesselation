@@ -17,27 +17,36 @@
 		
 		#pragma vertex VS			
 		#pragma fragment FS	
-		#pragma geometry GS	
+		//#pragma geometry GS	
 		
 		struct GlobalTriangle
 		{
 			float3 pt[3];
 			float3 nml[3];
 		};
+		
+		struct GlobalVertex
+		{
+			float3 pt;
+			float3 nml;
+		};
 
 		
 													
 		//StructuredBuffer<GlobalTriangle> triangles;
-		StructuredBuffer<float3> triangles;
+		StructuredBuffer<GlobalVertex> triangles;
+		//StructuredBuffer<float3> triangles;
 		struct vs2gs
 		{
 			float4 pos : SV_POSITION;
+			float4 nml	: FLOAT;
+			float4 clr : COLOR;
 		};
 			
 		struct gs2fs
 		{
 			float4 pos : SV_POSITION;		
-			float4 nml	: TEXCOORD0;
+			float4 nml	: FLOAT;
 		};
 			
 //		struct fsOutput
@@ -46,67 +55,49 @@
 //			float depth	: DEPTH;
 //		};
 
-		vs2gs VS(uint id : SV_VertexID)
+		vs2gs VS(uint id : SV_VertexID, uint inst : SV_InstanceID)
 		{
 		    vs2gs output;	
-		    output.pos =  float4(id,1.0,1.0,1.0);
-		    //output.pos =  float4(triangles[id].pt[0],1.0);
+		    //output.pos = float4(triangles[inst].pt[id],1.0);
+		    //output.nml = float4(triangles[inst].nml[id],0.0);
+		    
+		    //output.pos =  float4(id,1.0,1.0,1.0);
+		    output.pos =  mul(UNITY_MATRIX_MVP,float4(triangles[inst*3+id].pt,1.0));
+		    output.nml =  mul(UNITY_MATRIX_MV,float4(triangles[inst*3+id].nml,0.0));
+		    output.clr = float4(1,0,0,1);
+		    if (inst>0) output.clr = float4(1,1,0,1);
 		    return output;
 		}
 		
-		[maxvertexcount(4)]
-		void GS(point vs2gs input[1], inout TriangleStream<gs2fs> pointStream)
-		{
-			gs2fs output;
-			//GlobalTriangle gt = triangles[int(input[0].pos.x)];
-			int idx = int(input[0].pos.x);
-			float3 ptA = triangles[6*idx];
-			float3 ptB = triangles[6*idx+1];
-			float3 ptC = triangles[6*idx+2];
-			float3 nmA = triangles[6*idx+3];
-			float3 nmB = triangles[6*idx+4];
-			float3 nmC = triangles[6*idx+5];
-			
-			output.pos = mul(UNITY_MATRIX_MVP, float4(ptA,1.0));							
-			output.nml = mul(UNITY_MATRIX_MV, float4(nmA,0.0));							
-			pointStream.Append(output);
-			
-			output.pos = mul(UNITY_MATRIX_MVP, float4(ptB,1.0));							
-			output.nml = mul(UNITY_MATRIX_MV, float4(nmB,0.0));							
-			pointStream.Append(output);
-			
-			output.pos = mul(UNITY_MATRIX_MVP, float4(ptC,1.0));							
-			output.nml = mul(UNITY_MATRIX_MV, float4(nmC,0.0));
-			pointStream.Append(output);
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(gt.pt[0],1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[0],0.0));							
+//		[maxvertexcount(3)]
+//		void GS(triangle vs2gs input[3], inout TriangleStream<gs2fs> pointStream)
+//		{
+//			gs2fs output;
+//			float3 ptA = input[0].pos;
+//			float3 ptB = input[1].pos;
+//			float3 ptC = input[2].pos;
+//			float3 nmA = input[0].nml;
+//			float3 nmB = input[1].nml;
+//			float3 nmC = input[2].nml;
+//
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptA,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmA,0.0));							
 //			pointStream.Append(output);
 //			
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(gt.pt[1],1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[1],0.0));							
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptB,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmB,0.0));							
 //			pointStream.Append(output);
 //			
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(gt.pt[2],1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[2],0.0));
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptC,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmC,0.0));
 //			pointStream.Append(output);
-			
-//			output.pos = mul(UNITY_MATRIX_MVP, input[0].pos);							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[0],0.0));							
-//			pointStream.Append(output);
-//			
-//			float4 sx=float4(0.5,0,0,0);
-//			float4 sy=float4(0.0,0.5,0,0);
-//			output.pos = mul(UNITY_MATRIX_MVP, (input[0].pos+sx));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[1],0.0));							
-//			pointStream.Append(output);
-//			
-//			output.pos = mul(UNITY_MATRIX_MVP, (input[0].pos+sy));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(gt.nml[2],0.0));
-//			pointStream.Append(output);							
-			
-			pointStream.RestartStrip();	
-		}
-		float4 FS (gs2fs input) : COLOR
+//
+//			pointStream.RestartStrip();	
+//		}
+		
+		//float4 FS (gs2fs input) : COLOR
+		float4 FS (vs2gs input) : COLOR
 		{					
 			float pi = 3.14159265;
 			float3 dir = normalize(input.pos - float3(0.5,0.5,0.5));
@@ -117,7 +108,7 @@
 			float d = abs(dot(float3(0,0,-1),input.nml.xyz));
 			
 			//return float4(d,d,d,1);
-			return float4(1,1,0,1);
+			return input.clr;
 		}
 			
 		ENDCG				
