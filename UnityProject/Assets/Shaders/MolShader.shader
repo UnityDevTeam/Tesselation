@@ -214,8 +214,8 @@ Shader "Custom/MolShader"
 				float4 temp = mul (UNITY_MATRIX_P, float4(spriteSize, 0, input[0].pos.z, 1));  
 			    float discardSize = (temp.x / temp.w) * _ScreenParams.x;
 			
-				if(discardSize <= 1)	
-//				if(true)			
+//				if(discardSize <= 1)	
+				if(true)			
 				{				 
 				  	gs2fs output;				
 					output.pos = mul (UNITY_MATRIX_P, input[0].pos);
@@ -324,7 +324,8 @@ Shader "Custom/MolShader"
 				float atomEyeDepth = LinearEyeDepth(input.pos.z);				
 				float edgeFactor = clamp((ndotl- 0.4) * 50, 0, 1);
 				
-				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;				
+//				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;
+				fragColor = spriteColor * edgeFactor;								
 				fragDepth = 1 / ((atomEyeDepth + input.size * -normal.z) * _ZBufferParams.z) - _ZBufferParams.w / _ZBufferParams.z;				
 			}			
 			ENDCG	

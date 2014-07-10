@@ -19,6 +19,11 @@ public class MolScript : MonoBehaviour
 	private ComputeBuffer cbAtoms;
 	private ComputeBuffer cbMols;
 
+	public ComputeBuffer GetCbMols()
+	{
+		return cbMols;
+	}
+
 	private void CreateResources ()
 	{
 		if (cbDrawArgs == null)
