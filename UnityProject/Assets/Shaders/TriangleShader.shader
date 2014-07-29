@@ -19,11 +19,15 @@
 		#pragma fragment FS	
 		//#pragma geometry GS	
 		
-		struct GlobalTriangle
-		{
-			float3 pt[3];
-			float3 nml[3];
-		};
+struct GlobalTriangle
+{
+	float3 ptA;
+	float3 nmlA;
+	float3 ptB;
+	float3 nmlB;
+	float3 ptC;
+	float3 nmlC;
+};
 		
 		struct GlobalVertex
 		{
@@ -33,8 +37,8 @@
 
 		
 													
-		//StructuredBuffer<GlobalTriangle> triangles;
-		StructuredBuffer<GlobalVertex> triangles;
+		StructuredBuffer<GlobalTriangle> triangles;
+		//StructuredBuffer<GlobalVertex> triangles;
 		//StructuredBuffer<float3> triangles;
 		struct vs2gs
 		{
@@ -62,10 +66,25 @@
 		    //output.nml = float4(triangles[inst].nml[id],0.0);
 		    
 		    //output.pos =  float4(id,1.0,1.0,1.0);
-		    output.pos =  mul(UNITY_MATRIX_MVP,float4(triangles[inst*3+id].pt,1.0));
-		    output.nml =  mul(UNITY_MATRIX_MV,float4(triangles[inst*3+id].nml,0.0));
+//		    output.pos =  mul(UNITY_MATRIX_MVP,float4(triangles[inst*3+id].pt,1.0));
+//		    output.nml =  mul(UNITY_MATRIX_MV,float4(triangles[inst*3+id].nml,0.0));
+			GlobalTriangle gt = triangles[inst];
+			if (id==0) 
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptA,1.0));
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlA,0.0));
+		    } else
+		    if (id==1) 
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptB,1.0));
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlB,0.0));
+		    } else
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptC,1.0));
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlC,0.0));
+		    } 
 		    output.clr = float4(1,0,0,1);
-		    if (inst>0) output.clr = float4(1,1,0,1);
+		    //if (inst>0) output.clr = float4(1,1,0,1);
 		    return output;
 		}
 		
@@ -105,10 +124,10 @@
 			float v = 0.5 + 0.5* dot(float3(0,1,0),dir);
 
 			//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
-			float d = abs(dot(float3(0,0,-1),input.nml.xyz));
+			float d = abs(dot(normalize(float3(1,1,1)),-input.nml.xyz));
 			
-			//return float4(d,d,d,1);
-			return input.clr;
+			return float4(d,d,d,1);
+			//return input.clr;
 		}
 			
 		ENDCG				

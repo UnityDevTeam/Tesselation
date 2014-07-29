@@ -31,11 +31,14 @@ public class MolScript : MonoBehaviour
 
 	private ComputeBuffer cbMols;
 	private ComputeBuffer cbIndices;
-	public ComputeShader cs;
+	//public ComputeShader cs;
 	public ComputeShader csMC;
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
+	private bool updateTexture = true;
+	private static int triangleCountMax = 100000;
+
 
 	struct GlobalData   // size -> 12
 	{
@@ -46,8 +49,12 @@ public class MolScript : MonoBehaviour
 
 	public struct GlobalTriangle
 	{
-		public Vector3[] pt;
-		public Vector3[] nml;
+		public Vector3 ptA;
+		public Vector3 nmlA;
+		public Vector3 ptB;
+		public Vector3 nmlB;
+		public Vector3 ptC;
+		public Vector3 nmlC;
 	};
 
 	public struct GlobalVertex
@@ -98,14 +105,14 @@ public class MolScript : MonoBehaviour
 		if (cbDrawArgs == null)
 		{
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
-			/*
+
 			var args = new int[4];
 			args[0] = 0;
-			args[1] = 1;
+			args[1] = 3;
 			args[2] = 0;
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
-			*/
+
 		}
 
 		if (cbMols == null)
@@ -129,52 +136,59 @@ public class MolScript : MonoBehaviour
 		*/
 		if (triangleOutput == null) 
 		{
-			//triangleOutput = new ComputeBuffer (2, 24, ComputeBufferType.Append); 
-			//triangleOutput = new ComputeBuffer (2, Marshal.SizeOf(typeof(GlobalTriangle)), ComputeBufferType.Default); 
-			triangleOutput = new ComputeBuffer (6, Marshal.SizeOf(typeof(GlobalVertex)) , ComputeBufferType.Default); 
-			//GlobalTriangle[] gtlA = new GlobalTriangle[2];
-			GlobalVertex[] gtlA = new GlobalVertex[6];
-			//Vector3[] gtlA = new Vector3[12];
-
-//			gtlA[0].Set(0,0,0);
-//			gtlA[1].Set(0.5f,0,0);
-//			gtlA[2].Set(0,0.5f,0);
-//			gtlA[3].Set(0,0,0);
-//			gtlA[4].Set(0,-1,0);
-//			gtlA[5].Set(-1,0,0);
-//			gtlA[6].Set(0,0,0);
-//			gtlA[7].Set(1.0f,0,0);
-//			gtlA[8].Set(0,1.0f,0);
-//			gtlA[9].Set(0,0,0);
-//			gtlA[10].Set(0,1,0);
-//			gtlA[11].Set(1,0,0);
-			GlobalVertex gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(0,0,0);
-			gv.nml = new Vector3(0,0,0);
-			gtlA[0] = gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(0.5f,0,0);
-			gv.nml = new Vector3(1,0,0);
-			gtlA[1] = gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(0,0.5f,0);
-			gv.nml = new Vector3(-1,0,0);
-			gtlA[2] = gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(0,0,0);
-			gv.nml = new Vector3(0,0,0);
-			gtlA[3] = gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(-1.0f,0,0);
-			gv.nml = new Vector3(1,0,0);
-			gtlA[4] = gv;
-			gv = new GlobalVertex();
-			gv.pt = new Vector3(0,-0.5f,0);
-			gv.nml = new Vector3(-1,0,0);
-			gtlA[5] = gv;
-
+			//triangleOutput = new ComputeBuffer (100000, Marshal.SizeOf(typeof(GlobalTriangle)), ComputeBufferType.Append); 
+			triangleOutput = new ComputeBuffer (triangleCountMax,24*3, ComputeBufferType.Append); 
+			GlobalTriangle[] gtlA = new GlobalTriangle[triangleCountMax];
 			triangleOutput.SetData(gtlA);
+			//triangleOutput = new ComputeBuffer (2, Marshal.SizeOf(typeof(GlobalTriangle)), ComputeBufferType.Default); 
+			//triangleOutput = new ComputeBuffer (6, Marshal.SizeOf(typeof(GlobalVertex)) , ComputeBufferType.Default); 
+//			GlobalTriangle[] gtlA = new GlobalTriangle[2];
+//			GlobalTriangle gtl = new GlobalTriangle();
+//			gtl.ptA = new Vector3(0,0,0);
+//			gtl.nmlA = new Vector3(0,0,0);
+//			gtl.ptB = new Vector3(0.5f,0,0);
+//			gtl.nmlB = new Vector3(1,0,0);
+//			gtl.ptC = new Vector3(0,0.5f,0);
+//			gtl.nmlC = new Vector3(-1,0,0);
+//			gtlA[0] = gtl;
+//			gtl = new GlobalTriangle();
+//			gtl.ptA = new Vector3(0,0,0);
+//			gtl.nmlA = new Vector3(0,0,0);
+//			gtl.ptB = new Vector3(-1.0f,0,0);
+//			gtl.nmlB = new Vector3(1,0,0);
+//			gtl.ptC = new Vector3(0,-0.5f,0);
+//			gtl.nmlC = new Vector3(-1,0,0);
+//			gtlA[1] =gtl;
+//			triangleOutput.SetData(gtlA);
+			//GlobalVertex[] gtlA = new GlobalVertex[6];
+			//Vector3[] gtlA = new Vector3[12];
+			//GlobalVertex gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(0,0,0);
+//			gv.nml = new Vector3(0,0,0);
+//			gtlA[0] = gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(0.5f,0,0);
+//			gv.nml = new Vector3(1,0,0);
+//			gtlA[1] = gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(0,0.5f,0);
+//			gv.nml = new Vector3(-1,0,0);
+//			gtlA[2] = gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(0,0,0);
+//			gv.nml = new Vector3(0,0,0);
+//			gtlA[3] = gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(-1.0f,0,0);
+//			gv.nml = new Vector3(1,0,0);
+//			gtlA[4] = gv;
+//			gv = new GlobalVertex();
+//			gv.pt = new Vector3(0,-0.5f,0);
+//			gv.nml = new Vector3(-1,0,0);
+//			gtlA[5] = gv;
+//
+
 		}
 
 		if (volumeTexture == null)
@@ -186,7 +200,7 @@ public class MolScript : MonoBehaviour
 			volumeTexture.Create();
 		}
 
-		if (cbIndices == null) 
+		if (updateTexture) 
 		{
 			//! create the voxelization
 			Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
@@ -204,32 +218,35 @@ public class MolScript : MonoBehaviour
 //			densityTex.filterMode = FilterMode.Trilinear;
 //			densityTex.wrapMode = TextureWrapMode.Clamp;
 //			densityTex.anisoLevel = 2;
-			int gridLength = nx*ny*nz;
-			Vector3[] indices = new Vector3[gridLength];
-			int count = 0;
-			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx),1.0f/(float) (ny),1.0f/(float) (nz));
-			Debug.Log("delta step"+deltaStep.ToString("F4")+"dx"+dx.ToString("F4"));
-			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
-			for(int x = 0; x < nx; x++)
-			{
-				for(int y = 0; y < ny; y++)
-				{
-					for(int z = 0; z < nz; z++)
-					{
-						Vector3 vol_pos = pos;
-						vol_pos.x+=deltaStep.x*(float) x;
-						vol_pos.y+=deltaStep.y*(float) y;
-						vol_pos.z+=deltaStep.z*(float) z;
-						Vector3 _hs = new Vector3(0.5f,0.5f,0.5f);
-						indices[count++]=(vol_pos-_hs);
-						//Debug.Log(vol_pos);
-					}
-				}
-			}
-			cbIndices = new ComputeBuffer (indices.Length, 12); 
-			cbIndices.SetData(indices);
 
-			//this.ComputeMC(dx,min);
+			//! create indices (not required when using MC compute shader
+//			int gridLength = nx*ny*nz;
+//			Vector3[] indices = new Vector3[gridLength];
+//			int count = 0;
+//			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx),1.0f/(float) (ny),1.0f/(float) (nz));
+//			Debug.Log("delta step"+deltaStep.ToString("F4")+"dx"+dx.ToString("F4"));
+//			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
+//			for(int x = 0; x < nx; x++)
+//			{
+//				for(int y = 0; y < ny; y++)
+//				{
+//					for(int z = 0; z < nz; z++)
+//					{
+//						Vector3 vol_pos = pos;
+//						vol_pos.x+=deltaStep.x*(float) x;
+//						vol_pos.y+=deltaStep.y*(float) y;
+//						vol_pos.z+=deltaStep.z*(float) z;
+//						Vector3 _hs = new Vector3(0.5f,0.5f,0.5f);
+//						indices[count++]=(vol_pos-_hs);
+//						//Debug.Log(vol_pos);
+//					}
+//				}
+//			}
+//			cbIndices = new ComputeBuffer (indices.Length, 12); 
+//			cbIndices.SetData(indices);
+
+			this.ComputeMC(dx,min);
+			updateTexture=false;
 		}
 		
 				
@@ -245,7 +262,7 @@ public class MolScript : MonoBehaviour
 			//matMC.hideFlags = HideFlags.HideAndDontSave;
 		}
 	}
-
+//
 	private float eval(Vector3 p)
 	{
 		float S = 0.0f;
@@ -291,23 +308,28 @@ public class MolScript : MonoBehaviour
 
 	private void UpdateDensityTexture(Vector3 dx,Vector3 min)
 	{
-		cs.SetVector ("dx", dx);
-		cs.SetVector ("minBox", min);
-		cs.SetInt("atomCount", molPositions.Length);
-		cs.SetBuffer(0,"molPositions", cbMols);
-		cs.SetTexture (0, "Result", volumeTexture);
-		cs.Dispatch (0, 8,8,8);
+//		cs.SetVector ("dx", dx);
+//		cs.SetVector ("minBox", min);
+//		cs.SetInt("atomCount", molPositions.Length);
+//		cs.SetBuffer(0,"molPositions", cbMols);
+//		cs.SetTexture (0, "Result", volumeTexture);
+//		cs.Dispatch (0, 8,8,8);
+		csMC.SetVector ("dx", dx);
+		csMC.SetVector ("minBox", min);
+		csMC.SetInt("atomCount", molPositions.Length);
+		csMC.SetBuffer(1,"molPositions", cbMols);
+		csMC.SetTexture (1, "Result", volumeTexture);
+		csMC.Dispatch (1, 8,8,8);
 
 	}
 
 	private void ComputeMC(Vector3 dx,Vector3 min)
 	{
-		csMC.SetVector ("dx", dx);
 		csMC.SetVector ("_gridRes", new Vector3(64,64,64));
 		csMC.SetFloat("_isoLevel", 0.5f);
 		csMC.SetTexture(0,"_dataFieldTex", this.volumeTexture);
 		csMC.SetBuffer (0, "trianglesOut", this.triangleOutput);
-		Graphics.SetRandomWriteTarget (0, this.triangleOutput);
+		Graphics.SetRandomWriteTarget (1, this.triangleOutput);
 		csMC.Dispatch (0, 8,8,8);
 		ComputeBuffer.CopyCount (this.triangleOutput, cbDrawArgs, 0); 
 		var count = new int[4];
@@ -316,31 +338,36 @@ public class MolScript : MonoBehaviour
 		Debug.Log ("[1]"+count[1]);
 		Debug.Log ("[2]"+count[2]);
 		Debug.Log ("[3]"+count[3]);
-		
-		
 	}
 
+	void Start()
+	{
+		CreateResources ();
+	}
 	
 	private void ReleaseResources ()
 	{
-		if (cbDrawArgs != null) cbDrawArgs.Dispose (); cbDrawArgs = null;
+		if (cbDrawArgs != null) cbDrawArgs.Release (); cbDrawArgs = null;
 		//a-buffers
-		if (globalDataBuffer != null) globalDataBuffer.Dispose(); globalDataBuffer = null;
-		if (headBuffer != null) headBuffer.Dispose(); headBuffer = null;
+		if (globalDataBuffer != null) globalDataBuffer.Release(); globalDataBuffer = null;
+		if (headBuffer != null) headBuffer.Release(); headBuffer = null;
 		//if (headBuffer != null) headBuffer.Release(); headBuffer = null;
-		if (globalCounter != null) globalCounter.Dispose(); globalCounter = null;
+		if (globalCounter != null) globalCounter.Release(); globalCounter = null;
 		//a-buffers
 
-		if (cbMols != null) cbMols.Dispose(); cbMols = null;
+		if (cbMols != null) cbMols.Release(); cbMols = null;
 		
 		if (volumeTexture != null) volumeTexture.Release(); volumeTexture = null;
 
-		if (cbIndices != null) cbIndices.Dispose(); cbIndices = null;
+		if (cbIndices != null) cbIndices.Release(); cbIndices = null;
 
-		if (triangleOutput != null) triangleOutput.Dispose(); triangleOutput = null;
+		if (triangleOutput != null) triangleOutput.Release(); triangleOutput = null;
 
-
+		Debug.Log("Cleaning resources");
 		Object.DestroyImmediate (matMC);
+		Object.DestroyImmediate (matTriangles);
+		//Object.DestroyImmediate (csMC,true);
+
 	}
 	
 	void OnDisable ()
@@ -407,7 +434,7 @@ public class MolScript : MonoBehaviour
 	
 	void OnPostRender()
 	{
-		CreateResources ();
+		//CreateResources ();
 		/*
 		Graphics.SetRenderTarget (colorTexture);
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));		
@@ -427,14 +454,13 @@ public class MolScript : MonoBehaviour
 
 		matTriangles.SetBuffer ("triangles", this.triangleOutput);
 		matTriangles.SetPass(0);
-		//Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
-		//Graphics.DrawProcedural(MeshTopology.Points, 2);
-		Graphics.DrawProcedural(MeshTopology.Triangles, 3, 2);
+		//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+		Graphics.DrawProcedural(MeshTopology.Triangles, 3, 5000);
 
 
 
 
-		//Graphics.ClearRandomWriteTargets ();
+		Graphics.ClearRandomWriteTargets ();
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 
 //		int[] da =new int[4];
 //		cbDrawArgs.GetData (da);
