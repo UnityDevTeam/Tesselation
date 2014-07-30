@@ -49,10 +49,10 @@ struct GlobalTriangle
 						  				 float f)		//function value at the sample
 		{
 			//float _obscurence =  exp(-pow_param.y*dist);
-			float _obscurence =  exp(-0.01f*dist);
+			float _obscurence =  exp(-5.0f*dist);
 			float cosR = 1.0;
 			float cosRD = dot(gf,normal);
-			cosR = 1.0f/(1.0f+exp(8.0f*cosRD-3.0f));
+			cosR = 1.0f/(1.0f+exp(8.0f*cosRD-1.0f));
 			//cosR=1.0;
 			_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
 			return _obscurence;
@@ -68,19 +68,59 @@ struct GlobalTriangle
 			return grad;
 		}
 		
+		float3 get_orthogonal_vec(float3 v)
+		{
+			float3 g=float3(1,0,0);
+			float3 h = cross(v,g);
+			return h;
+		}
+
+		
 		float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
 		{
 				float fmin=-0.5;
-				float t=2.0*dataStep;
+				float t=2.0*dataStep.x;
 				float ao=0.0;
 				int samplesCount=0;
+				float3 xaxis = get_orthogonal_vec(normal);
+				float3 yaxis = normalize(cross(normal,xaxis));
+				float3 x[20];
+				float axsc = t/0.47;
+				float3 sdir=normal;
+				x[0] = p - t*sdir;
+				x[1] = x[0]+axsc*xaxis; x[1]=x[0]+t*normalize(x[1]-x[0]);
+				x[2] = x[0]-axsc*xaxis; x[2]=x[0]+t*normalize(x[2]-x[0]);
+				x[3] = x[0]-axsc*yaxis; x[3]=x[0]+t*normalize(x[3]-x[0]);
+				x[4] = x[0]+axsc*yaxis; x[4]=x[0]+t*normalize(x[4]-x[0]);
+				t*=1.5;
+				axsc = t/0.47;
+				x[5] = x[0] - t*sdir;
+				x[6] = x[5]+axsc*xaxis; x[6]=x[5]+t*normalize(x[6]-x[5]);
+				x[7] = x[5]-axsc*xaxis; x[7]=x[5]+t*normalize(x[7]-x[5]);
+				x[8] = x[5]-axsc*yaxis; x[8]=x[5]+t*normalize(x[8]-x[5]);
+				x[9] = x[5]+axsc*yaxis; x[9]=x[5]+t*normalize(x[9]-x[5]);
+				t*=1.5;
+				axsc = t/0.47;
+				x[10] = x[5] - t*sdir;
+				x[11] = x[10]+axsc*xaxis; x[11]=x[10]+t*normalize(x[11]-x[10]);
+				x[12] = x[10]-axsc*xaxis; x[12]=x[10]+t*normalize(x[12]-x[10]);
+				x[13] = x[10]-axsc*yaxis; x[13]=x[10]+t*normalize(x[13]-x[10]);
+				x[14] = x[10]+axsc*yaxis; x[14]=x[10]+t*normalize(x[14]-x[10]);
+				t*=1.5;
+				axsc = t/0.47;
+				x[15] = x[10] - t*sdir;
+				x[16] = x[15]+axsc*xaxis; x[16]=x[15]+t*normalize(x[16]-x[15]);
+				x[17] = x[15]-axsc*xaxis; x[17]=x[15]+t*normalize(x[17]-x[15]);
+				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
+				x[19] = x[15]+axsc*yaxis; x[19]=x[15]+t*normalize(x[19]-x[15]);
+				
 				for (int i=0;i<steps;i++,t+=dataStep)
 				{
-					float3 x = p - t*normal;
-					float xpl = length(x-p);
-					float3 xpv = normalize(p-x);
-					float3 grad = ComputeGradient(x,dataStep,h2);
-					float f = SampleData3(x).x;
+					//float3 x = p - t*normal;
+					float xpl = length(x[i]-p);
+					float3 xpv = normalize(p-x[i]);
+					float3 grad = ComputeGradient(x[i],dataStep,h2);
+					float f = SampleData3(x[i]).x;
 					if (f>fmin)
 					{
 						float gradl = length(grad);
@@ -192,7 +232,7 @@ struct GlobalTriangle
 			float h2 = dataStepSize*2.0;
 			float3 dataStep = float3(1.0/dataStepSize,1.0/dataStepSize,1.0/dataStepSize);
 			float3 grad = ComputeGradient(input.posOrig,dataStep,h2);
-			float ao = OcclusionFactor(input.posOrig, 5, normalize(grad), dataStep, h2);
+			float ao = OcclusionFactor(input.posOrig, 20, normalize(grad), dataStep, h2);
 			ao=1.0-ao;
 			
 			//return float4(d,d,d,1);

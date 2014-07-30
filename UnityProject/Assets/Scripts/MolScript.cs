@@ -6,7 +6,7 @@ public class MolScript : MonoBehaviour
 {
 	public int molCount = 100;
 	//public Shader shader;
-	public Shader shaderMC;
+	//public Shader shaderMC;
 	public Shader shaderTriangles;
 	
 	//private Material mat;
@@ -210,6 +210,7 @@ public class MolScript : MonoBehaviour
 			Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
 			UpdateDensityTexture(dx,min);
 			volumeTexture.filterMode = FilterMode.Trilinear;
+			volumeTexture.wrapMode = TextureWrapMode.Clamp;
 			//volumeTexture.anisoLevel = 2;
 //			fillVolume(min, dx,nx,ny, nz);
 //			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
@@ -249,13 +250,13 @@ public class MolScript : MonoBehaviour
 			updateTexture=false;
 		}
 		
-				
+		/*		
 		if (matMC == null)
 		{
 			matMC = new Material(shaderMC);
 			//matMC.hideFlags = HideFlags.HideAndDontSave;
 		}
-
+		*/
 		if (matTriangles == null)
 		{
 			matTriangles = new Material(shaderTriangles);
@@ -455,8 +456,8 @@ public class MolScript : MonoBehaviour
 		matTriangles.SetBuffer ("triangles", this.triangleOutput);
 		matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
 		matTriangles.SetPass(0);
-		Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-		//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 5000);
+		//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+		Graphics.DrawProcedural(MeshTopology.Triangles, 3, 50000);
 
 
 
