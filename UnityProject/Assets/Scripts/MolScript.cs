@@ -107,8 +107,8 @@ public class MolScript : MonoBehaviour
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
 
 			var args = new int[4];
-			args[0] = 0;
-			args[1] = 3;
+			args[0] = 3;
+			args[1] = 0;
 			args[2] = 0;
 			args[3] = 0;
 			cbDrawArgs.SetData (args);
@@ -331,7 +331,7 @@ public class MolScript : MonoBehaviour
 		csMC.SetBuffer (0, "trianglesOut", this.triangleOutput);
 		Graphics.SetRandomWriteTarget (1, this.triangleOutput);
 		csMC.Dispatch (0, 8,8,8);
-		ComputeBuffer.CopyCount (this.triangleOutput, cbDrawArgs, 0); 
+		ComputeBuffer.CopyCount (this.triangleOutput, cbDrawArgs, 4); 
 		var count = new int[4];
 		cbDrawArgs.GetData (count);
 		Debug.Log ("[0]"+count[0]);
@@ -453,9 +453,10 @@ public class MolScript : MonoBehaviour
 		*/
 
 		matTriangles.SetBuffer ("triangles", this.triangleOutput);
+		matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
 		matTriangles.SetPass(0);
-		//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-		Graphics.DrawProcedural(MeshTopology.Triangles, 3, 5000);
+		Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+		//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 5000);
 
 
 
