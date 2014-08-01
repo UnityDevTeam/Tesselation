@@ -26,19 +26,13 @@ struct GlobalVertex
 };
 */
 
-//AppendStructuredBuffer<GlobalTriangle> trianglesOut;
 AppendStructuredBuffer<GlobalTriangle> trianglesOut : register(u1);
-//AppendStructuredBuffer<GlobalVertex> trianglesOut : register(u0);
 sampler3D _dataFieldTex;
-//static const float _dataSize=128;
-//static const float _meshSize=64;
-//static const int3 _gridRes = int3(64,64,64);
-//static const float _isoLevel = 0.5;
-#define _dataSize 128.0
-#define _meshSize 64.0
+int _meshSize;
+int3 voxelsEval;
+#define _dataSize _meshSize*2
 #define _isoLevel 0.5
-//float3 _gridRes;
-//float _isoLevel;
+
 
 float SampleData( float4 pPosition  ){
 	return tex3Dlod(_dataFieldTex,float4(pPosition.xyz,0)).x;	
@@ -433,7 +427,7 @@ void evalCube(float4 pos)
 void ComputeMC(uint3 id : SV_DispatchThreadID)
 {
 	float3 vol_pos = float3(id.x,id.y,id.z);
-	float3 deltaStep = float3 (1.0f / (float) (64.0),1.0f/(float) (64.0),1.0f/(float) (64.0));
+	float3 deltaStep = float3 (1.0f / (float) (_meshSize),1.0f/(float) (_meshSize),1.0f/(float) (_meshSize));
 	float3 _hs = float3(0.5f,0.5f,0.5f);
 	float3 pos=vol_pos*deltaStep-_hs;
 	evalCube(float4(pos,0));
@@ -454,6 +448,7 @@ StructuredBuffer<float4> molPositions;
 float3 dx;
 float3 minBox;
 int atomCount;
+//int _meshSize;
 
 static float SR=1.3;
 
@@ -481,10 +476,17 @@ float eval(in float3 p)
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
 {
 	float3 vol_pos = float3(id.x,id.y,id.z);
-	float3 p = minBox + vol_pos*dx;
-	float fval = eval(p);
-	//fval = 0.1 + vol_pos.x/32.0;
-	float4 c;
-	c.r = c.g = c.b = c.w = fval;
-	Result[id] = c;
+	//int3 voxelsEval;
+	[loop]
+	for (int i=0;i<voxelsEval.x;i++)
+		for (int j=0;j<voxelsEval.y;j++)
+			for (int k=0;k<voxelsEval.z;k++)
+			{
+				float3 p = minBox + vol_pos*dx;
+				float fval = eval(p);
+				//fval = 0.1 + vol_pos.x/32.0;
+				float4 c;
+				c.r = c.g = c.b = c.w = fval;
+				Result[id] = c;
+	}
 }

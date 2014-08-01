@@ -4,6 +4,21 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
+[CustomEditor(typeof(MolScript))]
+public class ObjectBuilderEditor : Editor
+{
+	public override void OnInspectorGUI()
+	{
+		DrawDefaultInspector();
+
+		MolScript myScript = (MolScript)target;
+		if(GUILayout.Button("Build Object"))
+		{
+			myScript.BuildMC();
+		}
+	}
+}
+
 public class MyWindow : EditorWindow
 {	
 	// Add menu item named "My Window" to the Window menu

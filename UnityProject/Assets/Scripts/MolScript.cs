@@ -37,7 +37,8 @@ public class MolScript : MonoBehaviour
 	
 	private Vector4[] molPositions;
 	private bool updateTexture = true;
-	private static int triangleCountMax = 100000;
+	private static int triangleCountMax = 1000000;
+	private static int gridDim = 64;
 
 
 	struct GlobalData   // size -> 12
@@ -193,62 +194,14 @@ public class MolScript : MonoBehaviour
 
 		if (volumeTexture == null)
 		{
-			volumeTexture = new RenderTexture (64, 64, 0, RenderTextureFormat.ARGBFloat);
-			volumeTexture.volumeDepth = 64;
+			volumeTexture = new RenderTexture (gridDim, gridDim, 0, RenderTextureFormat.ARGBFloat);
+			volumeTexture.volumeDepth = gridDim;
 			volumeTexture.isVolume = true;
 			volumeTexture.enableRandomWrite = true;
 			volumeTexture.Create();
 		}
 
-		if (updateTexture) 
-		{
-			//! create the voxelization
-			Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
-			int nx=64;
-			int ny=64;
-			int nz=64;
-			Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
-			UpdateDensityTexture(dx,min);
-			volumeTexture.filterMode = FilterMode.Trilinear;
-			volumeTexture.wrapMode = TextureWrapMode.Clamp;
-			//volumeTexture.anisoLevel = 2;
-//			fillVolume(min, dx,nx,ny, nz);
-//			densityTex = new Texture3D(nx, ny, nz, TextureFormat.ARGB32, true);
-//			densityTex.SetPixels(voxels);
-//			densityTex.Apply();
-//			densityTex.filterMode = FilterMode.Trilinear;
-//			densityTex.wrapMode = TextureWrapMode.Clamp;
-//			densityTex.anisoLevel = 2;
 
-			//! create indices (not required when using MC compute shader
-//			int gridLength = nx*ny*nz;
-//			Vector3[] indices = new Vector3[gridLength];
-//			int count = 0;
-//			Vector3 deltaStep = new Vector3 (1.0f / (float) (nx),1.0f/(float) (ny),1.0f/(float) (nz));
-//			Debug.Log("delta step"+deltaStep.ToString("F4")+"dx"+dx.ToString("F4"));
-//			Vector3 pos = new Vector3 (0.0f,0.0f,0.0f);
-//			for(int x = 0; x < nx; x++)
-//			{
-//				for(int y = 0; y < ny; y++)
-//				{
-//					for(int z = 0; z < nz; z++)
-//					{
-//						Vector3 vol_pos = pos;
-//						vol_pos.x+=deltaStep.x*(float) x;
-//						vol_pos.y+=deltaStep.y*(float) y;
-//						vol_pos.z+=deltaStep.z*(float) z;
-//						Vector3 _hs = new Vector3(0.5f,0.5f,0.5f);
-//						indices[count++]=(vol_pos-_hs);
-//						//Debug.Log(vol_pos);
-//					}
-//				}
-//			}
-//			cbIndices = new ComputeBuffer (indices.Length, 12); 
-//			cbIndices.SetData(indices);
-
-			this.ComputeMC(dx,min);
-			updateTexture=false;
-		}
 		
 		/*		
 		if (matMC == null)
@@ -264,6 +217,23 @@ public class MolScript : MonoBehaviour
 		}
 	}
 //
+
+
+	public void updateTextureAndMesh()
+	{
+		//! create the voxelization
+		Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
+		int nx=gridDim;
+		int ny=gridDim;
+		int nz=gridDim;
+		Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
+		UpdateDensityTexture(dx,min);
+		volumeTexture.filterMode = FilterMode.Trilinear;
+		volumeTexture.wrapMode = TextureWrapMode.Clamp;
+		this.ComputeMC(dx,min);
+		updateTexture=false;
+	}
+
 	private float eval(Vector3 p)
 	{
 		float S = 0.0f;
@@ -317,6 +287,7 @@ public class MolScript : MonoBehaviour
 //		cs.Dispatch (0, 8,8,8);
 		csMC.SetVector ("dx", dx);
 		csMC.SetVector ("minBox", min);
+		csMC.SetInt ("_meshSize", gridDim);
 		csMC.SetInt("atomCount", molPositions.Length);
 		csMC.SetBuffer(1,"molPositions", cbMols);
 		csMC.SetTexture (1, "Result", volumeTexture);
@@ -326,7 +297,8 @@ public class MolScript : MonoBehaviour
 
 	private void ComputeMC(Vector3 dx,Vector3 min)
 	{
-		csMC.SetVector ("_gridRes", new Vector3(64,64,64));
+		csMC.SetVector ("_gridRes", new Vector3(gridDim,gridDim,gridDim));
+		csMC.SetInt ("_meshSize", gridDim);
 		csMC.SetFloat("_isoLevel", 0.5f);
 		csMC.SetTexture(0,"_dataFieldTex", this.volumeTexture);
 		csMC.SetBuffer (0, "trianglesOut", this.triangleOutput);
@@ -341,10 +313,20 @@ public class MolScript : MonoBehaviour
 		Debug.Log ("[3]"+count[3]);
 	}
 
-	void Start()
+
+	public void BuildMC()
+	{
+		//CreateResources ();
+		updateTextureAndMesh ();
+		Debug.Log ("TEST!@!!!");
+	}
+
+	public void Start()
 	{
 		CreateResources ();
+		Debug.Log ("Creating resources");
 	}
+
 	
 	private void ReleaseResources ()
 	{
@@ -423,7 +405,7 @@ public class MolScript : MonoBehaviour
 		Graphics.SetRandomWriteTarget (3, globalCounter);
 		//Graphics.SetRandomWriteTarget (5, triangleOutput); 
 		matMC.SetPass(0);
-		Graphics.DrawProcedural(MeshTopology.Points, 64*64*64);
+		Graphics.DrawProcedural(MeshTopology.Points, gridDim*gridDim*gridDim);
 		Graphics.ClearRandomWriteTargets ();
 		uint[] _counter=new uint[4];
 		globalCounter.GetData (_counter);
@@ -452,17 +434,15 @@ public class MolScript : MonoBehaviour
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		*/
-
-		matTriangles.SetBuffer ("triangles", this.triangleOutput);
-		matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
-		matTriangles.SetPass(0);
-		//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-		Graphics.DrawProcedural(MeshTopology.Triangles, 3, 50000);
-
-
-
-
-		Graphics.ClearRandomWriteTargets ();
+		if (matTriangles!=null)
+		{
+			matTriangles.SetBuffer ("triangles", this.triangleOutput);
+			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
+			matTriangles.SetPass(0);
+			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 50000);
+			Graphics.ClearRandomWriteTargets ();
+		}
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 
 //		int[] da =new int[4];
 //		cbDrawArgs.GetData (da);

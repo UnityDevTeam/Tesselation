@@ -79,7 +79,7 @@ struct GlobalTriangle
 		float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
 		{
 				float fmin=-0.5;
-				float t=2.0*dataStep.x;
+				float t=0.5*dataStep.x;
 				float ao=0.0;
 				int samplesCount=0;
 				float3 xaxis = get_orthogonal_vec(normal);
@@ -94,21 +94,22 @@ struct GlobalTriangle
 				x[4] = x[0]+axsc*yaxis; x[4]=x[0]+t*normalize(x[4]-x[0]);
 				t*=1.5;
 				axsc = t/0.47;
-				x[5] = x[0] - t*sdir;
+				float scale=0.5;
+				x[5] = x[0] - scale*t*sdir;
 				x[6] = x[5]+axsc*xaxis; x[6]=x[5]+t*normalize(x[6]-x[5]);
 				x[7] = x[5]-axsc*xaxis; x[7]=x[5]+t*normalize(x[7]-x[5]);
 				x[8] = x[5]-axsc*yaxis; x[8]=x[5]+t*normalize(x[8]-x[5]);
 				x[9] = x[5]+axsc*yaxis; x[9]=x[5]+t*normalize(x[9]-x[5]);
 				t*=1.5;
 				axsc = t/0.47;
-				x[10] = x[5] - t*sdir;
+				x[10] = x[5] - scale*t*sdir;
 				x[11] = x[10]+axsc*xaxis; x[11]=x[10]+t*normalize(x[11]-x[10]);
 				x[12] = x[10]-axsc*xaxis; x[12]=x[10]+t*normalize(x[12]-x[10]);
 				x[13] = x[10]-axsc*yaxis; x[13]=x[10]+t*normalize(x[13]-x[10]);
 				x[14] = x[10]+axsc*yaxis; x[14]=x[10]+t*normalize(x[14]-x[10]);
 				t*=1.5;
 				axsc = t/0.47;
-				x[15] = x[10] - t*sdir;
+				x[15] = x[10] - scale*t*sdir;
 				x[16] = x[15]+axsc*xaxis; x[16]=x[15]+t*normalize(x[16]-x[15]);
 				x[17] = x[15]-axsc*xaxis; x[17]=x[15]+t*normalize(x[17]-x[15]);
 				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
