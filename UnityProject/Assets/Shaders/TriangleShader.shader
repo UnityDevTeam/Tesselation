@@ -10,7 +10,7 @@
 		LOD 200
 		
 		CGPROGRAM
-		#define _dataSize 128.0
+		#define _dataSize 256.0
 		#include "UnityCG.cginc"
 			
 		#pragma only_renderers d3d11

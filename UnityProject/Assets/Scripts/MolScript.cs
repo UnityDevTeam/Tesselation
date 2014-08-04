@@ -38,7 +38,7 @@ public class MolScript : MonoBehaviour
 	private Vector4[] molPositions;
 	private bool updateTexture = true;
 	private static int triangleCountMax = 1000000;
-	private static int gridDim = 64;
+	private static int gridDim = 128;
 
 
 	struct GlobalData   // size -> 12
@@ -286,6 +286,8 @@ public class MolScript : MonoBehaviour
 //		cs.SetTexture (0, "Result", volumeTexture);
 //		cs.Dispatch (0, 8,8,8);
 		csMC.SetVector ("dx", dx);
+		//voxelsEval int[]=new int[3]
+		csMC.SetInts("voxelsEval", 2,2,2);
 		csMC.SetVector ("minBox", min);
 		csMC.SetInt ("_meshSize", gridDim);
 		csMC.SetInt("atomCount", molPositions.Length);

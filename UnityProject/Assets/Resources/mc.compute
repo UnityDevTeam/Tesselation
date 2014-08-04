@@ -426,11 +426,22 @@ void evalCube(float4 pos)
 [numthreads(8,8,8)]
 void ComputeMC(uint3 id : SV_DispatchThreadID)
 {
-	float3 vol_pos = float3(id.x,id.y,id.z);
+	//float3 vol_pos = float3(id.x,id.y,id.z);
 	float3 deltaStep = float3 (1.0f / (float) (_meshSize),1.0f/(float) (_meshSize),1.0f/(float) (_meshSize));
 	float3 _hs = float3(0.5f,0.5f,0.5f);
-	float3 pos=vol_pos*deltaStep-_hs;
-	evalCube(float4(pos,0));
+	//float3 pos=vol_pos*deltaStep-_hs;
+	
+	
+	[loop]
+	for (int i=0;i<voxelsEval.x;i++)
+		for (int j=0;j<voxelsEval.y;j++)
+			for (int k=0;k<voxelsEval.z;k++)
+			{
+				float3 vol_pos = float3(voxelsEval.x*id.x+i,voxelsEval.y*id.y+j,voxelsEval.z*id.z+k);
+				float3 pos=vol_pos*deltaStep-_hs;
+				evalCube(float4(pos,0));
+			}
+	
 	/*
 	GlobalTriangle outTriangle;
 	outTriangle.pt[0]=pos;
@@ -475,18 +486,19 @@ float eval(in float3 p)
 [numthreads(8,8,8)]
 void ComputeDensity(uint3 id : SV_DispatchThreadID)
 {
-	float3 vol_pos = float3(id.x,id.y,id.z);
+	
 	//int3 voxelsEval;
 	[loop]
 	for (int i=0;i<voxelsEval.x;i++)
 		for (int j=0;j<voxelsEval.y;j++)
 			for (int k=0;k<voxelsEval.z;k++)
 			{
+				float3 vol_pos = float3(voxelsEval.x*id.x+i,voxelsEval.y*id.y+j,voxelsEval.z*id.z+k);			
 				float3 p = minBox + vol_pos*dx;
 				float fval = eval(p);
 				//fval = 0.1 + vol_pos.x/32.0;
 				float4 c;
 				c.r = c.g = c.b = c.w = fval;
-				Result[id] = c;
+				Result[uint3(vol_pos)] = c;
 	}
 }
