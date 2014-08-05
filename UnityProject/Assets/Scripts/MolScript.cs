@@ -36,9 +36,9 @@ public class MolScript : MonoBehaviour
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
-	private bool updateTexture = true;
 	private static int triangleCountMax = 1000000;
 	private static int gridDim = 128;
+	public float SR;
 
 
 	struct GlobalData   // size -> 12
@@ -231,9 +231,8 @@ public class MolScript : MonoBehaviour
 		volumeTexture.filterMode = FilterMode.Trilinear;
 		volumeTexture.wrapMode = TextureWrapMode.Clamp;
 		this.ComputeMC(dx,min);
-		updateTexture=false;
 	}
-
+	/*
 	private float eval(Vector3 p)
 	{
 		float S = 0.0f;
@@ -252,6 +251,7 @@ public class MolScript : MonoBehaviour
 		}
 		return S;
 	}
+
 
 	void fillVolume(Vector3 min, Vector3 dx, int nx, int ny, int nz)
 	{
@@ -276,7 +276,7 @@ public class MolScript : MonoBehaviour
 		}
 		
 	}
-
+	*/
 	private void UpdateDensityTexture(Vector3 dx,Vector3 min)
 	{
 //		cs.SetVector ("dx", dx);
@@ -287,6 +287,7 @@ public class MolScript : MonoBehaviour
 //		cs.Dispatch (0, 8,8,8);
 		csMC.SetVector ("dx", dx);
 		//voxelsEval int[]=new int[3]
+		csMC.SetFloat ("SR", SR);
 		csMC.SetInts("voxelsEval", 2,2,2);
 		csMC.SetVector ("minBox", min);
 		csMC.SetInt ("_meshSize", gridDim);
@@ -294,6 +295,7 @@ public class MolScript : MonoBehaviour
 		csMC.SetBuffer(1,"molPositions", cbMols);
 		csMC.SetTexture (1, "Result", volumeTexture);
 		csMC.Dispatch (1, 8,8,8);
+		Debug.Log ("SR="+SR);
 
 	}
 
