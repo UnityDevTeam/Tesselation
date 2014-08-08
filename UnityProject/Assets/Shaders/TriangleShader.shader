@@ -60,6 +60,14 @@ struct GlobalTriangle
 			return _obscurence;
 		}
 		
+		float compute_obscurance_no_gradient(float dist,	//distance of the sample from the surface point
+						  				     float f)		//function value at the sample
+		{
+			float _obscurence =  exp(-5.0f*dist);
+			_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			return _obscurence;
+		}
+		
 		float3 ComputeGradient(float3 position, float3 dataStep, float h2)
 		{
 			float3 grad = float3(
@@ -77,6 +85,11 @@ struct GlobalTriangle
 			return h;
 		}
 
+
+		void BuildSamples(float level)
+		{
+			
+		}
 		
 		float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
 		{
@@ -86,37 +99,67 @@ struct GlobalTriangle
 				int samplesCount=0;
 				float3 xaxis = get_orthogonal_vec(normal);
 				float3 yaxis = normalize(cross(normal,xaxis));
+				float3 xaxisR = normalize(xaxis+yaxis);
+				float3 yaxisR = normalize(xaxis-yaxis);
 				float3 x[20];
 				float axsc = t/0.47;
 				float3 sdir=normal;
 				float scaleWide = 1.0;
 				x[0] = p - t*sdir;
-				x[1] = x[0]+axsc*xaxis; x[1]=x[0]+scaleWide*t*normalize(x[1]-x[0]);
-				x[2] = x[0]-axsc*xaxis; x[2]=x[0]+scaleWide*t*normalize(x[2]-x[0]);
-				x[3] = x[0]-axsc*yaxis; x[3]=x[0]+scaleWide*t*normalize(x[3]-x[0]);
-				x[4] = x[0]+axsc*yaxis; x[4]=x[0]+scaleWide*t*normalize(x[4]-x[0]);
-				t*=2.0;
-				axsc = t/0.47;
-				float scale=1.0;
-				x[5] = x[0] - scale*t*sdir;
-				x[6] = x[5]+axsc*xaxis; x[6]=x[5]+scaleWide*t*normalize(x[6]-x[5]);
-				x[7] = x[5]-axsc*xaxis; x[7]=x[5]+scaleWide*t*normalize(x[7]-x[5]);
-				x[8] = x[5]-axsc*yaxis; x[8]=x[5]+scaleWide*t*normalize(x[8]-x[5]);
-				x[9] = x[5]+axsc*yaxis; x[9]=x[5]+scaleWide*t*normalize(x[9]-x[5]);
-				t*=1.5;
-				axsc = t/0.47;
-				x[10] = x[5] - scale*t*sdir;
-				x[11] = x[10]+axsc*xaxis; x[11]=x[10]+t*normalize(x[11]-x[10]);
-				x[12] = x[10]-axsc*xaxis; x[12]=x[10]+t*normalize(x[12]-x[10]);
-				x[13] = x[10]-axsc*yaxis; x[13]=x[10]+t*normalize(x[13]-x[10]);
-				x[14] = x[10]+axsc*yaxis; x[14]=x[10]+t*normalize(x[14]-x[10]);
-				t*=1.5;
-				axsc = t/0.47;
-				x[15] = x[10] - scale*t*sdir;
-				x[16] = x[15]+axsc*xaxis; x[16]=x[15]+t*normalize(x[16]-x[15]);
-				x[17] = x[15]-axsc*xaxis; x[17]=x[15]+t*normalize(x[17]-x[15]);
-				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
-				x[19] = x[15]+axsc*yaxis; x[19]=x[15]+t*normalize(x[19]-x[15]);
+				
+				
+				x[1] = x[0]-t*sdir+axsc*xaxisR;
+				x[2] = x[0]-t*sdir-axsc*xaxisR;
+				x[3] = x[0]-t*sdir-axsc*yaxisR;
+				x[4] = x[0]-t*sdir+axsc*yaxisR;
+				
+//				t*=2.0;
+//				axsc = t/0.47;
+//				float scale=1.0;
+				x[5] = x[0] - 2.0*t*sdir;
+				x[6] = x[5]+2.0*axsc*xaxis;
+				x[7] = x[5]-2.0*axsc*xaxis;
+				x[8] = x[5]-2.0*axsc*yaxis;
+				x[9] = x[5]+2.0*axsc*yaxis;
+//				t*=1.5;
+//				axsc = t/0.47;
+				x[10] = x[0]-3.0*t*sdir+3.0*axsc*xaxisR;
+				x[11] = x[0]-3.0*t*sdir-3.0*axsc*xaxisR;
+				x[12] = x[0]-3.0*t*sdir-3.0*axsc*yaxisR;
+				x[13] = x[0]-3.0*t*sdir+3.0*axsc*yaxisR;
+//				t*=1.5;
+//				axsc = t/0.47;
+				x[14] = x[0] - 4.0*t*sdir;
+				x[15] = x[14]+4.0*axsc*xaxis;
+				x[16] = x[14]-4.0*axsc*xaxis;
+				x[17] = x[14]-4.0*axsc*yaxis;
+				x[18] = x[14]+4.0*axsc*yaxis;
+//				x[1] = x[0]+axsc*xaxis; x[1]=x[0]+scaleWide*t*normalize(x[1]-x[0]);
+//				x[2] = x[0]-axsc*xaxis; x[2]=x[0]+scaleWide*t*normalize(x[2]-x[0]);
+//				x[3] = x[0]-axsc*yaxis; x[3]=x[0]+scaleWide*t*normalize(x[3]-x[0]);
+//				x[4] = x[0]+axsc*yaxis; x[4]=x[0]+scaleWide*t*normalize(x[4]-x[0]);
+//				t*=2.0;
+//				axsc = t/0.47;
+//				float scale=1.0;
+//				x[5] = x[0] - scale*t*sdir;
+//				x[6] = x[5]+axsc*xaxis; x[6]=x[5]+scaleWide*t*normalize(x[6]-x[5]);
+//				x[7] = x[5]-axsc*xaxis; x[7]=x[5]+scaleWide*t*normalize(x[7]-x[5]);
+//				x[8] = x[5]-axsc*yaxis; x[8]=x[5]+scaleWide*t*normalize(x[8]-x[5]);
+//				x[9] = x[5]+axsc*yaxis; x[9]=x[5]+scaleWide*t*normalize(x[9]-x[5]);
+//				t*=1.5;
+//				axsc = t/0.47;
+//				x[10] = x[5] - scale*t*sdir;
+//				x[11] = x[10]+axsc*xaxis; x[11]=x[10]+t*normalize(x[11]-x[10]);
+//				x[12] = x[10]-axsc*xaxis; x[12]=x[10]+t*normalize(x[12]-x[10]);
+//				x[13] = x[10]-axsc*yaxis; x[13]=x[10]+t*normalize(x[13]-x[10]);
+//				x[14] = x[10]+axsc*yaxis; x[14]=x[10]+t*normalize(x[14]-x[10]);
+//				t*=1.5;
+//				axsc = t/0.47;
+//				x[15] = x[10] - scale*t*sdir;
+//				x[16] = x[15]+axsc*xaxis; x[16]=x[15]+t*normalize(x[16]-x[15]);
+//				x[17] = x[15]-axsc*xaxis; x[17]=x[15]+t*normalize(x[17]-x[15]);
+//				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
+//				x[19] = x[15]+axsc*yaxis; x[19]=x[15]+t*normalize(x[19]-x[15]);
 				
 				for (int i=0;i<steps;i++)
 				{
