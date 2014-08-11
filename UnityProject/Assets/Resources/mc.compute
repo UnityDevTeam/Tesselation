@@ -472,8 +472,8 @@ float eval(in float3 p)
 		float radius = molPositions[i].w;
 		float3 YD = apt - p;
 		float r = dot(YD,YD);
-		//float b = SR*SR;
-		float b = 0.8;
+		float b = SR*SR;
+		//float b = 0.8;
 		float a = -log(0.5f/b)/(radius*radius);
 		float gauss_f = b*exp(-(r*a));
 		S+=gauss_f;

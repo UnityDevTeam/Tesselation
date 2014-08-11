@@ -8,6 +8,7 @@
 		Tags { "RenderType"="Opaque" }
 		Cull Off Fog { Mode Off }
 		LOD 200
+		ZWrite On
 		
 		CGPROGRAM
 		#define _dataSize 256.0
@@ -38,6 +39,7 @@ struct GlobalTriangle
 		
 		
 		sampler3D _dataFieldTex;
+		float3 aoParam;
 		
 		float SampleData3( float3 p){
 			return tex3Dlod(_dataFieldTex,float4(p.xyz,0)).x;	
@@ -94,7 +96,8 @@ struct GlobalTriangle
 		float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
 		{
 				float fmin=-0.5;
-				float t=4.0*dataStep.x;
+				//float t=4.0*dataStep.x;
+				float t=aoParam.x*dataStep.x;
 				float ao=0.0;
 				int samplesCount=0;
 				float3 xaxis = get_orthogonal_vec(normal);
@@ -267,9 +270,16 @@ struct GlobalTriangle
 //		}
 		
 		//[earlydepthstencil]
-		float4 FS (vs2gs input) : COLOR
+		//float4 FS (vs2gs input) : COLOR
+		struct fs2out 
+		{
+		float4 oColor : COLOR;
+   		float oDepth : DEPTH;
+		};
+		fs2out FS (vs2gs input)
 		{
 		
+			fs2out fout;
 			//! compute ao
 			float dataStepSize = _dataSize;
 			float h2 = dataStepSize*2.0;
@@ -301,7 +311,12 @@ struct GlobalTriangle
 			
 			
 			//return float4(clr.xzy,1);
-			return float4(ao,ao,ao,1);
+			//return float4(ao,ao,ao,1);
+			fout.oColor = float4(1.0,1.0,1.0,1);
+			fout.oDepth = input.pos.z/input.pos.w;
+			
+			//return float4(1.0,1.0,1.0,1);
+			return fout;
 			//return input.clr;
 		}
 			

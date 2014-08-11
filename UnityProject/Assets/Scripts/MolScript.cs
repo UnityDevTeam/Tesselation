@@ -1,10 +1,13 @@
 using UnityEngine;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
+//using PdbReader;
 
 //[ExecuteInEditMode]
 public class MolScript : MonoBehaviour
 {
 	public int molCount = 100;
+	public Vector3 aoParam = new Vector3(3.0f,1.0f,1.0f); //scale of t, scale * distance between levels, not assigned yet
 	//public Shader shader;
 	//public Shader shaderMC;
 	public Shader shaderTriangles;
@@ -13,6 +16,7 @@ public class MolScript : MonoBehaviour
 	private Material matMC;
 	private Material matTriangles;
 	private Texture3D densityTex;	
+	private Bounds bbox;
 	
 	private RenderTexture volumeTexture;
 	
@@ -36,7 +40,7 @@ public class MolScript : MonoBehaviour
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
-	private static int triangleCountMax = 1000000;
+	private static int triangleCountMax = 2000000;
 	private static int gridDim = 128;
 	public float SR;
 
@@ -103,6 +107,9 @@ public class MolScript : MonoBehaviour
 	private void CreateResources ()
 	{
 
+		//GetComponent<Camera>().depthTextureMode = DepthTextureMode.DepthNormals;
+		camera.depthTextureMode = DepthTextureMode.DepthNormals;
+
 		if (cbDrawArgs == null)
 		{
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
@@ -118,18 +125,33 @@ public class MolScript : MonoBehaviour
 
 		if (cbMols == null)
 		{
-			molPositions = new Vector4[molCount];
-			
-			for (var i=0; i < molCount; i++)
-			{
-				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
-				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
-				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
-				                    0.3f);
-			}
-			
+
+//			molPositions = new Vector4[molCount];
+//			
+//			for (var i=0; i < molCount; i++)
+//			{
+//				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
+//				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
+//				                    (UnityEngine.Random.value - 0.5f) * 10.0f,
+//				                    0.3f);
+//			}
+
+			List<Vector4> molList = PdbReader.ReadPdbFileSimple();
+			molPositions = molList.ToArray();
+			bbox = new Bounds(Vector3.zero,Vector3.zero);
+			//Vector3 minBB = new Vector3(Mathf.Infinity,Mathf.Infinity,Mathf.Infinity);
+			//Vector3 maxBB = new Vector3(-Mathf.Infinity,-Mathf.Infinity,-Mathf.Infinity);
+
+			foreach(Vector4 m in molPositions) 
+				bbox.Encapsulate(new Vector3(m.x,m.y,m.z));
+			bbox.Expand(1.8f);
+			//minBB-=new Vector3(1.8f,1.8f,1.8f);
+			//maxBB+=new Vector3(1.8f,1.8f,1.8f);
+			//bbox = new Bounds(0.5f*(minBB+maxBB),maxBB-minBB);
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
 			cbMols.SetData(molPositions);
+			Debug.Log("min="+bbox.min+"max="+bbox.max+"extents:"+bbox.size);
+			//Debug.Log("min="+minBB+"max="+maxBB);
 		}
 		/*
 		if (globalDataBuffer==null)
@@ -222,11 +244,13 @@ public class MolScript : MonoBehaviour
 	public void updateTextureAndMesh()
 	{
 		//! create the voxelization
-		Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
+		//Vector3 min = new Vector3(-7.0f,-7.0f,-7.0f);
+		Vector3 min = bbox.min;
 		int nx=gridDim;
 		int ny=gridDim;
 		int nz=gridDim;
-		Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
+		//Vector3 dx = new Vector3(14.0f/(float) (nx-1),14.0f/(float) (ny-1),14.0f/(float) (nz-1));
+		Vector3 dx = new Vector3(bbox.size.x / (float) (nx-1),bbox.size.y/(float) (ny-1),bbox.size.z/(float) (nz-1));
 		UpdateDensityTexture(dx,min);
 		volumeTexture.filterMode = FilterMode.Trilinear;
 		volumeTexture.wrapMode = TextureWrapMode.Clamp;
@@ -295,7 +319,7 @@ public class MolScript : MonoBehaviour
 		csMC.SetBuffer(1,"molPositions", cbMols);
 		csMC.SetTexture (1, "Result", volumeTexture);
 		csMC.Dispatch (1, 8,8,8);
-		Debug.Log ("SR="+SR);
+		Debug.Log ("SR="+SR+"atomCount="+molPositions.Length);
 
 	}
 
@@ -442,6 +466,7 @@ public class MolScript : MonoBehaviour
 		{
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
 			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
+			matTriangles.SetVector("aoParam",aoParam);
 			matTriangles.SetPass(0);
 			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
 			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 50000);
@@ -457,7 +482,7 @@ public class MolScript : MonoBehaviour
 
 
 	}
-
+	/*
 	void OnRenderImage (RenderTexture source, RenderTexture destination){
 		//! iso-surface creation
 
@@ -467,14 +492,5 @@ public class MolScript : MonoBehaviour
 //		Graphics.Blit (source, destination, matMC, 1);
 //		Graphics.ClearRandomWriteTargets ();
 		//Graphics.Blit (this.mrtTex[0], destination);
-		/*
-		RenderTexture.active = null;
-		mat.SetTexture("slab0", this.mrtTex[0]);
-		mat.SetTexture("slab1", this.mrtTex[1]);
-		mat.SetTexture("slab2", this.mrtTex[2]);
-		mat.SetTexture("slab3", this.mrtTex[3]);
-		Graphics.Blit (source, destination, mat, 4);
-		*/
-
-	}
+	}*/
 }
