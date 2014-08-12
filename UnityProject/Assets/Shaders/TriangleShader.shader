@@ -40,6 +40,8 @@ struct GlobalTriangle
 		
 		sampler3D _dataFieldTex;
 		float3 aoParam;
+		float3 aoFuncParam;
+		int aoSamplesCount;
 		
 		float SampleData3( float3 p){
 			return tex3Dlod(_dataFieldTex,float4(p.xyz,0)).x;	
@@ -55,11 +57,14 @@ struct GlobalTriangle
 			//float _obscurence =  1.0;
 			float cosR = 1.0;
 			float cosRD = dot(gf,normal);
-			cosR = 1.0f/(1.0f+exp(8.0f*cosRD-2.0f));
+			//cosR = 1.0f/(1.0f+exp(8.0f*cosRD-2.0f));
+			cosR = 1.0f/(1.0f+exp(aoParam.y*cosRD-aoParam.z));
 			//cosR=1.0;
 			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
-			_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			_obscurence = aoFuncParam.x*(cosR*_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
 			return _obscurence;
+			//return 1.0f;
 		}
 		
 		float compute_obscurance_no_gradient(float dist,	//distance of the sample from the surface point
@@ -93,7 +98,7 @@ struct GlobalTriangle
 			
 		}
 		
-		float OcclusionFactor(float3 p, int steps, float3 normal, float3 dataStep, float h2)
+		float OcclusionFactor(float3 p, float3 normal, float3 dataStep, float h2)
 		{
 				float fmin=-0.5;
 				//float t=4.0*dataStep.x;
@@ -104,34 +109,42 @@ struct GlobalTriangle
 				float3 yaxis = normalize(cross(normal,xaxis));
 				float3 xaxisR = normalize(xaxis+yaxis);
 				float3 yaxisR = normalize(xaxis-yaxis);
-				float3 x[20];
+				float3 x[50];
 				float axsc = t/0.47;
 				float3 sdir=normal;
-				float scaleWide = 1.0;
+				int i;
+				/*
+				for (i=0;i<aoSamplesCount;i++);
+				{
+						int j=10*i;
+						float fi=2.0f*(float)i+1.0f;
+						float fj=2.0f*(float)i+2.0f;
+						x[j+0] = p - fi*t*sdir;
+						x[j+1] = x[j]+fi*axsc*xaxisR;
+						x[j+2] = x[j]-fi*axsc*xaxisR;
+						x[j+3] = x[j]-fi*axsc*yaxisR;
+						x[j+4] = x[j]+fi*axsc*yaxisR;
+						x[j+5] = p - fj*t*sdir;
+						x[j+6] = x[j+5]+fj*axsc*xaxis;
+						x[j+7] = x[j+5]-fj*axsc*xaxis;
+						x[j+8] = x[j+5]-fj*axsc*yaxis;
+						x[j+9] = x[j+5]+fj*axsc*yaxis;
+				}
+				*/
 				x[0] = p - t*sdir;
-				
-				
-				x[1] = x[0]-t*sdir+axsc*xaxisR;
-				x[2] = x[0]-t*sdir-axsc*xaxisR;
-				x[3] = x[0]-t*sdir-axsc*yaxisR;
-				x[4] = x[0]-t*sdir+axsc*yaxisR;
-				
-//				t*=2.0;
-//				axsc = t/0.47;
-//				float scale=1.0;
+				x[1] = x[0]+axsc*xaxisR;
+				x[2] = x[0]-axsc*xaxisR;
+				x[3] = x[0]-axsc*yaxisR;
+				x[4] = x[0]+axsc*yaxisR;
 				x[5] = x[0] - 2.0*t*sdir;
 				x[6] = x[5]+2.0*axsc*xaxis;
 				x[7] = x[5]-2.0*axsc*xaxis;
 				x[8] = x[5]-2.0*axsc*yaxis;
 				x[9] = x[5]+2.0*axsc*yaxis;
-//				t*=1.5;
-//				axsc = t/0.47;
 				x[10] = x[0]-3.0*t*sdir+3.0*axsc*xaxisR;
 				x[11] = x[0]-3.0*t*sdir-3.0*axsc*xaxisR;
 				x[12] = x[0]-3.0*t*sdir-3.0*axsc*yaxisR;
 				x[13] = x[0]-3.0*t*sdir+3.0*axsc*yaxisR;
-//				t*=1.5;
-//				axsc = t/0.47;
 				x[14] = x[0] - 4.0*t*sdir;
 				x[15] = x[14]+4.0*axsc*xaxis;
 				x[16] = x[14]-4.0*axsc*xaxis;
@@ -164,7 +177,7 @@ struct GlobalTriangle
 //				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
 //				x[19] = x[15]+axsc*yaxis; x[19]=x[15]+t*normalize(x[19]-x[15]);
 				
-				for (int i=0;i<steps;i++)
+				for (i=0;i<10*aoSamplesCount;i++)
 				{
 					//float3 x = p - t*normal;
 					float xpl = length(x[i]-p);
@@ -270,22 +283,22 @@ struct GlobalTriangle
 //		}
 		
 		//[earlydepthstencil]
-		//float4 FS (vs2gs input) : COLOR
+		//
 		struct fs2out 
 		{
 		float4 oColor : COLOR;
    		float oDepth : DEPTH;
 		};
-		fs2out FS (vs2gs input)
+		//fs2out FS (vs2gs input)
+		float4 FS (vs2gs input) : COLOR
 		{
 		
-			fs2out fout;
 			//! compute ao
 			float dataStepSize = _dataSize;
 			float h2 = dataStepSize*2.0;
 			float3 dataStep = float3(1.0/dataStepSize,1.0/dataStepSize,1.0/dataStepSize);
 			float3 grad = ComputeGradient(input.posOrig,dataStep,h2);
-			float ao = OcclusionFactor(input.posOrig, 10, normalize(grad), dataStep, h2);
+			float ao = OcclusionFactor(input.posOrig, normalize(grad), dataStep, h2);
 			ao=1.0-ao;					
 			
 			
@@ -311,12 +324,13 @@ struct GlobalTriangle
 			
 			
 			//return float4(clr.xzy,1);
-			//return float4(ao,ao,ao,1);
-			fout.oColor = float4(1.0,1.0,1.0,1);
-			fout.oDepth = input.pos.z/input.pos.w;
+			return float4(ao,ao,ao,1);
+			//fs2out fout;
+			//fout.oColor = float4(1.0,1.0,1.0,1);
+			//fout.oDepth = input.pos.z/input.pos.w;
 			
 			//return float4(1.0,1.0,1.0,1);
-			return fout;
+			//return fout;
 			//return input.clr;
 		}
 			

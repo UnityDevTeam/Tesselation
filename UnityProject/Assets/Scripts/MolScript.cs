@@ -6,8 +6,10 @@ using System.Collections.Generic;
 //[ExecuteInEditMode]
 public class MolScript : MonoBehaviour
 {
-	public int molCount = 100;
-	public Vector3 aoParam = new Vector3(3.0f,1.0f,1.0f); //scale of t, scale * distance between levels, not assigned yet
+	public int molCount = 1000;
+	public Vector3 aoParam = new Vector3(3.0f,8.0f,2.0f); //scale of t, scale * distance between levels, not assigned yet
+	public Vector3 aoFuncParam = new Vector3(1.0f,8.0f,1.0f); //scale of ao, func 1, func 2
+	public int aoSamplesCount = 2;
 	//public Shader shader;
 	//public Shader shaderMC;
 	public Shader shaderTriangles;
@@ -40,9 +42,9 @@ public class MolScript : MonoBehaviour
 	private Color[]  voxels;
 	
 	private Vector4[] molPositions;
-	private static int triangleCountMax = 2000000;
+	private static int triangleCountMax = 1000000;
 	private static int gridDim = 128;
-	public float SR;
+	public float SR=1.4f;
 
 
 	struct GlobalData   // size -> 12
@@ -126,8 +128,8 @@ public class MolScript : MonoBehaviour
 		if (cbMols == null)
 		{
 
-//			molPositions = new Vector4[molCount];
-//			
+			molPositions = new Vector4[molCount];
+			
 //			for (var i=0; i < molCount; i++)
 //			{
 //				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * 10.0f, 
@@ -144,7 +146,7 @@ public class MolScript : MonoBehaviour
 
 			foreach(Vector4 m in molPositions) 
 				bbox.Encapsulate(new Vector3(m.x,m.y,m.z));
-			bbox.Expand(1.8f);
+			bbox.Expand(2.0f);
 			//minBB-=new Vector3(1.8f,1.8f,1.8f);
 			//maxBB+=new Vector3(1.8f,1.8f,1.8f);
 			//bbox = new Bounds(0.5f*(minBB+maxBB),maxBB-minBB);
@@ -467,9 +469,12 @@ public class MolScript : MonoBehaviour
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
 			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
 			matTriangles.SetVector("aoParam",aoParam);
+			matTriangles.SetVector("aoFuncParam",aoFuncParam);
+			matTriangles.SetInt("aoSamplesCount",aoSamplesCount);
+
 			matTriangles.SetPass(0);
-			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 50000);
+			//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+			Graphics.DrawProcedural(MeshTopology.Triangles, 3, 207000);
 			Graphics.ClearRandomWriteTargets ();
 		}
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 

@@ -36,11 +36,11 @@ public class MouseOrbit : MonoBehaviour
 		
 		if (Input.GetAxis("Mouse ScrollWheel") > 0.0f) // forward
 		{
-			distance++;
+			distance+=0.3f;
 		}
 		if (Input.GetAxis("Mouse ScrollWheel") < 0.0f) // back
 		{
-			distance--;
+			distance-=0.3f;
 		}  
 		
 		var rotation = Quaternion.Euler(y, x, 0.0f);
