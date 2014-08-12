@@ -7,9 +7,9 @@ using System.Collections.Generic;
 public class MolScript : MonoBehaviour
 {
 	public int molCount = 1000;
-	public Vector3 aoParam = new Vector3(3.0f,8.0f,2.0f); //scale of t, scale * distance between levels, not assigned yet
+	public Vector3 aoGradParam = new Vector3(3.0f,8.0f,2.0f); //scale of t, scale * distance between levels, not assigned yet
 	public Vector3 aoFuncParam = new Vector3(1.0f,8.0f,1.0f); //scale of ao, func 1, func 2
-	public int aoSamplesCount = 2;
+	public int aoSamplesCount = 1; //number of samples x 10
 	//public Shader shader;
 	//public Shader shaderMC;
 	public Shader shaderTriangles;
@@ -146,7 +146,7 @@ public class MolScript : MonoBehaviour
 
 			foreach(Vector4 m in molPositions) 
 				bbox.Encapsulate(new Vector3(m.x,m.y,m.z));
-			bbox.Expand(2.0f);
+			bbox.Expand(4.0f);
 			//minBB-=new Vector3(1.8f,1.8f,1.8f);
 			//maxBB+=new Vector3(1.8f,1.8f,1.8f);
 			//bbox = new Bounds(0.5f*(minBB+maxBB),maxBB-minBB);
@@ -466,15 +466,16 @@ public class MolScript : MonoBehaviour
 		*/
 		if (matTriangles!=null)
 		{
+			camera.SetReplacementShader(matTriangles,null);
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
 			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
-			matTriangles.SetVector("aoParam",aoParam);
+			matTriangles.SetVector("aoGradParam",aoGradParam);
 			matTriangles.SetVector("aoFuncParam",aoFuncParam);
 			matTriangles.SetInt("aoSamplesCount",aoSamplesCount);
 
 			matTriangles.SetPass(0);
-			//Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-			Graphics.DrawProcedural(MeshTopology.Triangles, 3, 207000);
+			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
+			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 207000);
 			Graphics.ClearRandomWriteTargets ();
 		}
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 

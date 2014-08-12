@@ -39,7 +39,7 @@ struct GlobalTriangle
 		
 		
 		sampler3D _dataFieldTex;
-		float3 aoParam;
+		float3 aoGradParam;
 		float3 aoFuncParam;
 		int aoSamplesCount;
 		
@@ -58,7 +58,7 @@ struct GlobalTriangle
 			float cosR = 1.0;
 			float cosRD = dot(gf,normal);
 			//cosR = 1.0f/(1.0f+exp(8.0f*cosRD-2.0f));
-			cosR = 1.0f/(1.0f+exp(aoParam.y*cosRD-aoParam.z));
+			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
 			//cosR=1.0;
 			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
 			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0*f-1.0));
@@ -102,7 +102,7 @@ struct GlobalTriangle
 		{
 				float fmin=-0.5;
 				//float t=4.0*dataStep.x;
-				float t=aoParam.x*dataStep.x;
+				float t=aoGradParam.x*dataStep.x;
 				float ao=0.0;
 				int samplesCount=0;
 				float3 xaxis = get_orthogonal_vec(normal);
@@ -113,8 +113,8 @@ struct GlobalTriangle
 				float axsc = t/0.47;
 				float3 sdir=normal;
 				int i;
-				/*
-				for (i=0;i<aoSamplesCount;i++);
+				
+				for (i=0;i<aoSamplesCount;i++)
 				{
 						int j=10*i;
 						float fi=2.0f*(float)i+1.0f;
@@ -125,31 +125,34 @@ struct GlobalTriangle
 						x[j+3] = x[j]-fi*axsc*yaxisR;
 						x[j+4] = x[j]+fi*axsc*yaxisR;
 						x[j+5] = p - fj*t*sdir;
+						//x[j+5] = p - fi*t*sdir;
 						x[j+6] = x[j+5]+fj*axsc*xaxis;
 						x[j+7] = x[j+5]-fj*axsc*xaxis;
 						x[j+8] = x[j+5]-fj*axsc*yaxis;
 						x[j+9] = x[j+5]+fj*axsc*yaxis;
+
 				}
-				*/
-				x[0] = p - t*sdir;
-				x[1] = x[0]+axsc*xaxisR;
-				x[2] = x[0]-axsc*xaxisR;
-				x[3] = x[0]-axsc*yaxisR;
-				x[4] = x[0]+axsc*yaxisR;
-				x[5] = x[0] - 2.0*t*sdir;
-				x[6] = x[5]+2.0*axsc*xaxis;
-				x[7] = x[5]-2.0*axsc*xaxis;
-				x[8] = x[5]-2.0*axsc*yaxis;
-				x[9] = x[5]+2.0*axsc*yaxis;
-				x[10] = x[0]-3.0*t*sdir+3.0*axsc*xaxisR;
-				x[11] = x[0]-3.0*t*sdir-3.0*axsc*xaxisR;
-				x[12] = x[0]-3.0*t*sdir-3.0*axsc*yaxisR;
-				x[13] = x[0]-3.0*t*sdir+3.0*axsc*yaxisR;
-				x[14] = x[0] - 4.0*t*sdir;
-				x[15] = x[14]+4.0*axsc*xaxis;
-				x[16] = x[14]-4.0*axsc*xaxis;
-				x[17] = x[14]-4.0*axsc*yaxis;
-				x[18] = x[14]+4.0*axsc*yaxis;
+				
+//				x[0] = p - t*sdir;
+//				x[1] = x[0]+axsc*xaxisR;
+//				x[2] = x[0]-axsc*xaxisR;
+//				x[3] = x[0]-axsc*yaxisR;
+//				x[4] = x[0]+axsc*yaxisR;
+//				x[5] = x[0] - 2.0*t*sdir;
+//				x[6] = x[5]+2.0*axsc*xaxis;
+//				x[7] = x[5]-2.0*axsc*xaxis;
+//				x[8] = x[5]-2.0*axsc*yaxis;
+//				x[9] = x[5]+2.0*axsc*yaxis;
+//				x[10] = x[0]-3.0*t*sdir+3.0*axsc*xaxisR;
+//				x[11] = x[0]-3.0*t*sdir-3.0*axsc*xaxisR;
+//				x[12] = x[0]-3.0*t*sdir-3.0*axsc*yaxisR;
+//				x[13] = x[0]-3.0*t*sdir+3.0*axsc*yaxisR;
+//				x[14] = x[0] - 4.0*t*sdir;
+//				x[15] = x[14]+4.0*axsc*xaxis;
+//				x[16] = x[14]-4.0*axsc*xaxis;
+//				x[17] = x[14]-4.0*axsc*yaxis;
+//				x[18] = x[14]+4.0*axsc*yaxis;
+				
 //				x[1] = x[0]+axsc*xaxis; x[1]=x[0]+scaleWide*t*normalize(x[1]-x[0]);
 //				x[2] = x[0]-axsc*xaxis; x[2]=x[0]+scaleWide*t*normalize(x[2]-x[0]);
 //				x[3] = x[0]-axsc*yaxis; x[3]=x[0]+scaleWide*t*normalize(x[3]-x[0]);
