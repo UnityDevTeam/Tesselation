@@ -466,7 +466,7 @@ public class MolScript : MonoBehaviour
 		*/
 		if (matTriangles!=null)
 		{
-			camera.SetReplacementShader(matTriangles,null);
+			//camera.SetReplacementShader(matTriangles,null);
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
 			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
 			matTriangles.SetVector("aoGradParam",aoGradParam);

@@ -71,7 +71,8 @@ struct GlobalTriangle
 						  				     float f)		//function value at the sample
 		{
 			float _obscurence =  exp(-5.0f*dist);
-			_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
 			return _obscurence;
 		}
 		
@@ -98,21 +99,54 @@ struct GlobalTriangle
 			
 		}
 		
+//		void generate_samples_ao(float3 p, float3 normal, float3 dataStep,inout float3 x[50])
+//		{
+//			float t=aoGradParam.x*dataStep.x;
+//			int i;
+//			float3 xaxis = get_orthogonal_vec(normal);
+//			float3 yaxis = normalize(cross(normal,xaxis));
+//			float3 xaxisR = normalize(xaxis+yaxis);
+//			float3 yaxisR = normalize(xaxis-yaxis);
+//			float axsc = t/0.47;
+//			float3 sdir=normal;	
+//			for (i=0;i<aoSamplesCount;i++)
+//			{
+//					int j=10*i;
+//					float fi=2.0f*(float)i+1.0f;
+//					float fj=2.0f*(float)i+2.0f;
+//					x[j+0] = p - fi*t*sdir;
+//					x[j+1] = x[j]+fi*axsc*xaxisR;
+//					x[j+2] = x[j]-fi*axsc*xaxisR;
+//					x[j+3] = x[j]-fi*axsc*yaxisR;
+//					x[j+4] = x[j]+fi*axsc*yaxisR;
+//					x[j+5] = p - fj*t*sdir;
+//					//x[j+5] = p - fi*t*sdir;
+//					x[j+6] = x[j+5]+fj*axsc*xaxis;
+//					x[j+7] = x[j+5]-fj*axsc*xaxis;
+//					x[j+8] = x[j+5]-fj*axsc*yaxis;
+//					x[j+9] = x[j+5]+fj*axsc*yaxis;
+//
+//			}
+//		}
+		
 		float OcclusionFactor(float3 p, float3 normal, float3 dataStep, float h2)
 		{
 				float fmin=-0.5;
 				//float t=4.0*dataStep.x;
 				float t=aoGradParam.x*dataStep.x;
+				float3 x[50];
+				int i;
+				//generate_samples_ao(p,normal,dataStep,x);
 				float ao=0.0;
 				int samplesCount=0;
+				
 				float3 xaxis = get_orthogonal_vec(normal);
 				float3 yaxis = normalize(cross(normal,xaxis));
 				float3 xaxisR = normalize(xaxis+yaxis);
 				float3 yaxisR = normalize(xaxis-yaxis);
-				float3 x[50];
 				float axsc = t/0.47;
 				float3 sdir=normal;
-				int i;
+				
 				
 				for (i=0;i<aoSamplesCount;i++)
 				{
@@ -133,72 +167,78 @@ struct GlobalTriangle
 
 				}
 				
-//				x[0] = p - t*sdir;
-//				x[1] = x[0]+axsc*xaxisR;
-//				x[2] = x[0]-axsc*xaxisR;
-//				x[3] = x[0]-axsc*yaxisR;
-//				x[4] = x[0]+axsc*yaxisR;
-//				x[5] = x[0] - 2.0*t*sdir;
-//				x[6] = x[5]+2.0*axsc*xaxis;
-//				x[7] = x[5]-2.0*axsc*xaxis;
-//				x[8] = x[5]-2.0*axsc*yaxis;
-//				x[9] = x[5]+2.0*axsc*yaxis;
-//				x[10] = x[0]-3.0*t*sdir+3.0*axsc*xaxisR;
-//				x[11] = x[0]-3.0*t*sdir-3.0*axsc*xaxisR;
-//				x[12] = x[0]-3.0*t*sdir-3.0*axsc*yaxisR;
-//				x[13] = x[0]-3.0*t*sdir+3.0*axsc*yaxisR;
-//				x[14] = x[0] - 4.0*t*sdir;
-//				x[15] = x[14]+4.0*axsc*xaxis;
-//				x[16] = x[14]-4.0*axsc*xaxis;
-//				x[17] = x[14]-4.0*axsc*yaxis;
-//				x[18] = x[14]+4.0*axsc*yaxis;
-				
-//				x[1] = x[0]+axsc*xaxis; x[1]=x[0]+scaleWide*t*normalize(x[1]-x[0]);
-//				x[2] = x[0]-axsc*xaxis; x[2]=x[0]+scaleWide*t*normalize(x[2]-x[0]);
-//				x[3] = x[0]-axsc*yaxis; x[3]=x[0]+scaleWide*t*normalize(x[3]-x[0]);
-//				x[4] = x[0]+axsc*yaxis; x[4]=x[0]+scaleWide*t*normalize(x[4]-x[0]);
-//				t*=2.0;
-//				axsc = t/0.47;
-//				float scale=1.0;
-//				x[5] = x[0] - scale*t*sdir;
-//				x[6] = x[5]+axsc*xaxis; x[6]=x[5]+scaleWide*t*normalize(x[6]-x[5]);
-//				x[7] = x[5]-axsc*xaxis; x[7]=x[5]+scaleWide*t*normalize(x[7]-x[5]);
-//				x[8] = x[5]-axsc*yaxis; x[8]=x[5]+scaleWide*t*normalize(x[8]-x[5]);
-//				x[9] = x[5]+axsc*yaxis; x[9]=x[5]+scaleWide*t*normalize(x[9]-x[5]);
-//				t*=1.5;
-//				axsc = t/0.47;
-//				x[10] = x[5] - scale*t*sdir;
-//				x[11] = x[10]+axsc*xaxis; x[11]=x[10]+t*normalize(x[11]-x[10]);
-//				x[12] = x[10]-axsc*xaxis; x[12]=x[10]+t*normalize(x[12]-x[10]);
-//				x[13] = x[10]-axsc*yaxis; x[13]=x[10]+t*normalize(x[13]-x[10]);
-//				x[14] = x[10]+axsc*yaxis; x[14]=x[10]+t*normalize(x[14]-x[10]);
-//				t*=1.5;
-//				axsc = t/0.47;
-//				x[15] = x[10] - scale*t*sdir;
-//				x[16] = x[15]+axsc*xaxis; x[16]=x[15]+t*normalize(x[16]-x[15]);
-//				x[17] = x[15]-axsc*xaxis; x[17]=x[15]+t*normalize(x[17]-x[15]);
-//				x[18] = x[15]-axsc*yaxis; x[18]=x[15]+t*normalize(x[18]-x[15]);
-//				x[19] = x[15]+axsc*yaxis; x[19]=x[15]+t*normalize(x[19]-x[15]);
-				
 				for (i=0;i<10*aoSamplesCount;i++)
 				{
 					//float3 x = p - t*normal;
 					float xpl = length(x[i]-p);
-					float3 xpv = normalize(p-x[i]);
-					float3 grad = ComputeGradient(x[i],dataStep,h2);
 					float f = SampleData3(x[i]).x-0.5;
 					//if (f>fmin)
 					{
-						float gradl = length(grad);
-						grad = grad/gradl;
-						//float aonow=sin(1.5*dot(xpv,normal))*compute_obscurance(xpv,xpl,grad,f);
-						//float aonow=compute_obscurance(xpv,xpl,grad,f);
-						float aonow=compute_obscurance(normal,xpl,grad,f);
+						//float3 xpv = normalize(p-x[i]);
+						float3 grad;
+						float aonow;
+						if (xpl<4.0*t)
+						{
+							grad = ComputeGradient(x[i],dataStep,h2);
+							float gradl = length(grad);
+							grad = grad/gradl;
+							aonow=compute_obscurance(normal,xpl,grad,f);
+						} else
+						{
+							aonow=compute_obscurance_no_gradient(xpl,f);
+						}
 						ao+=aonow;
 						samplesCount++;
-					} 
+					}
+					 
 				}
 				if (samplesCount>0) return clamp(ao/float(samplesCount),0,1);
+				return 0;
+		}
+		
+		float OcclusionFactorOneRay(float3 p, float3 normal, float3 dataStep, float h2)
+		{
+				float fmin=-0.5;
+				//float t=4.0*dataStep.x;
+				float t=aoGradParam.x*dataStep.x;
+				float3 x[50];
+				int i;
+				//generate_samples_ao(p,normal,dataStep,x);
+				float ao=0.0;
+				int samplesCount=0;
+				
+				for (i=0;i<5*aoSamplesCount;i++)
+				{
+						x[i] = p - (float)i*t*normal;
+				}
+				
+				for (i=0;i<5*aoSamplesCount;i++)
+				{
+					//float3 x = p - t*normal;
+					float xpl = length(x[i]-p);
+					float f = SampleData3(x[i]).x-0.5;
+					//if (f>fmin)
+					{
+						//float3 xpv = normalize(p-x[i]);
+						float3 grad;
+						float aonow;
+						if (xpl<10.0*t)
+						{
+							grad = ComputeGradient(x[i],dataStep,h2);
+							float gradl = length(grad);
+							grad = grad/gradl;
+							aonow=compute_obscurance(normal,xpl,grad,f);
+						} else
+						{
+							aonow=compute_obscurance_no_gradient(xpl,f);
+						}
+						ao+=aonow;
+						samplesCount++;
+					}
+					 
+				}
+				if (samplesCount>0) return clamp(ao/float(samplesCount),0,1);
+				//if (samplesCount>0) return clamp(ao,0,1);
 				return 0;
 		}
 													
@@ -302,7 +342,12 @@ struct GlobalTriangle
 			float3 dataStep = float3(1.0/dataStepSize,1.0/dataStepSize,1.0/dataStepSize);
 			float3 grad = ComputeGradient(input.posOrig,dataStep,h2);
 			float ao = OcclusionFactor(input.posOrig, normalize(grad), dataStep, h2);
-			ao=1.0-ao;					
+			float3 lightDir = normalize(_WorldSpaceLightPos0.xyz-input.posOrig);
+			float shadow=0.0;
+			//if (dot(lightDir,grad)>0.0)
+			shadow = OcclusionFactorOneRay(input.posOrig, lightDir, dataStep, h2);
+			ao=(1.0-ao)*(1.0-shadow);		
+						
 			
 			
 			
