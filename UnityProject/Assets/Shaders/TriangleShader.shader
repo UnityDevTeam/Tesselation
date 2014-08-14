@@ -164,6 +164,8 @@ struct GlobalTriangle
 						x[j+7] = x[j+5]-fj*axsc*xaxis;
 						x[j+8] = x[j+5]-fj*axsc*yaxis;
 						x[j+9] = x[j+5]+fj*axsc*yaxis;
+						t*=1.5;
+						
 
 				}
 				
@@ -177,7 +179,7 @@ struct GlobalTriangle
 						//float3 xpv = normalize(p-x[i]);
 						float3 grad;
 						float aonow;
-						if (xpl<4.0*t)
+						if (xpl<8.0*t)
 						{
 							grad = ComputeGradient(x[i],dataStep,h2);
 							float gradl = length(grad);
@@ -241,6 +243,17 @@ struct GlobalTriangle
 				//if (samplesCount>0) return clamp(ao,0,1);
 				return 0;
 		}
+		
+		uint PackFloat4IntoUint(float4 vValue)
+		{
+		    return ( ((uint)(vValue.x*255)) << 24 ) | ( ((uint)(vValue.y*255)) << 16 ) | ( ((uint)(vValue.z*255)) << 8) | (uint)(vValue.w * 255);
+		}
+
+		float4 UnpackUintIntoFloat4(uint uValue)
+		{
+		    return float4( ( (uValue & 0xFF000000)>>24 ) / 255.0, ( (uValue & 0x00FF0000)>>16 ) / 255.0, ( (uValue & 0x0000FF00)>>8 ) / 255.0, ( (uValue & 0x000000FF) ) / 255.0);
+		}
+
 													
 		StructuredBuffer<GlobalTriangle> triangles;
 		//StructuredBuffer<GlobalVertex> triangles;
@@ -346,7 +359,8 @@ struct GlobalTriangle
 			float shadow=0.0;
 			//if (dot(lightDir,grad)>0.0)
 			shadow = OcclusionFactorOneRay(input.posOrig, lightDir, dataStep, h2);
-			ao=(1.0-ao)*(1.0-shadow);		
+			ao=(1.0-ao);
+			//ao*=(1.0-shadow);		
 						
 			
 			
@@ -367,12 +381,13 @@ struct GlobalTriangle
 			float3 clr = float3(0.5,0.2,0.6);
 			clr = diffuse_light * clr + ao*specular_light*float3(1.0,1.0,1.0)+ ao*clr;
 
-			
-			
-			
+			PackFloat4IntoUint
+//			float2 cf = EncodeViewNormalStereo (input.posOrig);
+//			float2 cs = EncodeViewNormalStereo (input.nml.xyz);
+			return float4(cf.x,cf.y,cs.x,cs.y);
 			
 			//return float4(clr.xzy,1);
-			return float4(ao,ao,ao,1);
+			//return float4(ao,ao,ao,1);
 			//fs2out fout;
 			//fout.oColor = float4(1.0,1.0,1.0,1);
 			//fout.oDepth = input.pos.z/input.pos.w;
@@ -385,49 +400,56 @@ struct GlobalTriangle
 		ENDCG				
 	} 
 	// Second pass
-		Pass
-		{	
-			ZWrite On 	
-			CGPROGRAM	
+	Pass
+		{
+			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
 
-			#include "UnityCG.cginc"			
+			CGPROGRAM
 			
-			#pragma vertex VS			
-			#pragma fragment FS							
-																																									
-			struct GlobalTriangle
-			{
-				float3 pt[3];
-				float3 nml[3];
-			};
-
+			#include "UnityCG.cginc"
+				
+			#pragma only_renderers d3d11		
+			#pragma target 5.0
+			
+			#pragma vertex vert
+			#pragma fragment frag
 		
-													
-			StructuredBuffer<GlobalTriangle> triangles;
-			
-			struct vs2fs
+			sampler2D _MainTex;
+
+			struct v2f
 			{
 				float4 pos : SV_POSITION;
+				float2 uv : TEXCOORD0;
 			};
-			
 
-			vs2fs VS(uint id : SV_VertexID)
+			v2f vert (appdata_base v)
 			{
-			    GlobalTriangle triangleInfo = triangles[id];	
-			    
-			    vs2fs output;	
-			    output.pos = mul (UNITY_MATRIX_MVP, float4(triangleInfo.pt[0].xyz, 1));	    
-			    //output.pos = mul (UNITY_MATRIX_MVP, float4(0.0,0.0,0.0, 1));	    
-			    return output;
+				v2f o;
+				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				o.uv = v.texcoord;
+				return o;
+			}			
+
+			float4 frag (v2f i) : COLOR0
+			{
+				float4 c = tex2D (_MainTex, i.uv);
+				float3 pos = DecodeViewNormalStereo (float4(c.x,c.y,0,0));
+				float3 nml = DecodeViewNormalStereo (float4(c.z,c.w,0,0));
+				
+				float3 H = normalize(pos - _WorldSpaceCameraPos);
+				float3 L = normalize(float3(1,1,1));
+				float diffuse_light = max(dot(L,nml),0.0);
+			
+				float3 R = reflect(-L, -nml);
+				float specular_light = pow( max(dot(R, -H), 0.0), 25 );
+				float3 clr = float3(0.5,0.2,0.6);
+				clr = diffuse_light * clr + specular_light*float3(1.0,1.0,1.0)+ clr;
+				return float4(clr.x,clr.y,clr.z,1.0);
 			}
 			
-			float4 FS (vs2fs input) : COLOR
-			{					
-				return float4(1,1,1,1);
-			}
-			
-			ENDCG					
-		}	 
+			ENDCG
+		}
+
 	
 }
 }

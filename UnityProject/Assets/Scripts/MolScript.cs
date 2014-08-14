@@ -46,6 +46,9 @@ public class MolScript : MonoBehaviour
 	private static int gridDim = 128;
 	public float SR=1.4f;
 
+	private RenderTexture colorTexture;
+	private RenderTexture normalTexture;
+
 
 	struct GlobalData   // size -> 12
 	{
@@ -70,6 +73,14 @@ public class MolScript : MonoBehaviour
 		public Vector3 nml;
 	};
 
+	private void CreateRenderTextures()
+	{
+		colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
+		colorTexture.filterMode = FilterMode.Point;
+		colorTexture.anisoLevel = 1;
+		colorTexture.antiAliasing = 1;
+		colorTexture.Create(); 
+	}
 
 	private void CreateBuffers()
 	{
@@ -165,55 +176,6 @@ public class MolScript : MonoBehaviour
 			triangleOutput = new ComputeBuffer (triangleCountMax,24*3, ComputeBufferType.Append); 
 			GlobalTriangle[] gtlA = new GlobalTriangle[triangleCountMax];
 			triangleOutput.SetData(gtlA);
-			//triangleOutput = new ComputeBuffer (2, Marshal.SizeOf(typeof(GlobalTriangle)), ComputeBufferType.Default); 
-			//triangleOutput = new ComputeBuffer (6, Marshal.SizeOf(typeof(GlobalVertex)) , ComputeBufferType.Default); 
-//			GlobalTriangle[] gtlA = new GlobalTriangle[2];
-//			GlobalTriangle gtl = new GlobalTriangle();
-//			gtl.ptA = new Vector3(0,0,0);
-//			gtl.nmlA = new Vector3(0,0,0);
-//			gtl.ptB = new Vector3(0.5f,0,0);
-//			gtl.nmlB = new Vector3(1,0,0);
-//			gtl.ptC = new Vector3(0,0.5f,0);
-//			gtl.nmlC = new Vector3(-1,0,0);
-//			gtlA[0] = gtl;
-//			gtl = new GlobalTriangle();
-//			gtl.ptA = new Vector3(0,0,0);
-//			gtl.nmlA = new Vector3(0,0,0);
-//			gtl.ptB = new Vector3(-1.0f,0,0);
-//			gtl.nmlB = new Vector3(1,0,0);
-//			gtl.ptC = new Vector3(0,-0.5f,0);
-//			gtl.nmlC = new Vector3(-1,0,0);
-//			gtlA[1] =gtl;
-//			triangleOutput.SetData(gtlA);
-			//GlobalVertex[] gtlA = new GlobalVertex[6];
-			//Vector3[] gtlA = new Vector3[12];
-			//GlobalVertex gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(0,0,0);
-//			gv.nml = new Vector3(0,0,0);
-//			gtlA[0] = gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(0.5f,0,0);
-//			gv.nml = new Vector3(1,0,0);
-//			gtlA[1] = gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(0,0.5f,0);
-//			gv.nml = new Vector3(-1,0,0);
-//			gtlA[2] = gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(0,0,0);
-//			gv.nml = new Vector3(0,0,0);
-//			gtlA[3] = gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(-1.0f,0,0);
-//			gv.nml = new Vector3(1,0,0);
-//			gtlA[4] = gv;
-//			gv = new GlobalVertex();
-//			gv.pt = new Vector3(0,-0.5f,0);
-//			gv.nml = new Vector3(-1,0,0);
-//			gtlA[5] = gv;
-//
-
 		}
 
 		if (volumeTexture == null)
@@ -376,6 +338,8 @@ public class MolScript : MonoBehaviour
 
 		if (triangleOutput != null) triangleOutput.Release(); triangleOutput = null;
 
+		if (colorTexture != null) colorTexture.Release (); colorTexture = null;
+
 		Debug.Log("Cleaning resources");
 		Object.DestroyImmediate (matMC);
 		Object.DestroyImmediate (matTriangles);
@@ -464,6 +428,7 @@ public class MolScript : MonoBehaviour
 		RenderTexture.active = null;
 		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		*/
+		//RenderTexture.active = colorTexture;
 		if (matTriangles!=null)
 		{
 			//camera.SetReplacementShader(matTriangles,null);
@@ -488,15 +453,14 @@ public class MolScript : MonoBehaviour
 
 
 	}
-	/*
+
 	void OnRenderImage (RenderTexture source, RenderTexture destination){
 		//! iso-surface creation
-
-		Graphics.Blit (source, destination);
+		Graphics.Blit (source, destination, matTriangles, 1);
 //		matMC.SetBuffer ("r_HeadBuffer", headBuffer);
 //		matMC.SetBuffer ("r_GlobalData", globalDataBuffer);
 //		Graphics.Blit (source, destination, matMC, 1);
 //		Graphics.ClearRandomWriteTargets ();
 		//Graphics.Blit (this.mrtTex[0], destination);
-	}*/
+	}
 }
