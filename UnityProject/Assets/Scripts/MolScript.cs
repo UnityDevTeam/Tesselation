@@ -46,8 +46,8 @@ public class MolScript : MonoBehaviour
 	private static int gridDim = 128;
 	public float SR=1.4f;
 
-	private RenderTexture colorTexture;
-	private RenderTexture normalTexture;
+	private RenderTexture[] mrtTex;
+	private RenderBuffer[] mrtRB; 
 
 
 	struct GlobalData   // size -> 12
@@ -75,11 +75,15 @@ public class MolScript : MonoBehaviour
 
 	private void CreateRenderTextures()
 	{
-		colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
-		colorTexture.filterMode = FilterMode.Point;
-		colorTexture.anisoLevel = 1;
-		colorTexture.antiAliasing = 1;
-		colorTexture.Create(); 
+
+		this.mrtTex  =   new RenderTexture[2];
+		this.mrtRB    =   new RenderBuffer[2];
+		
+		this.mrtTex[0] = new RenderTexture (Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat);
+		this.mrtTex[1] = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
+
+		for( int i = 0; i < this.mrtTex.Length; i++ )
+			this.mrtRB[i] = this.mrtTex[i].colorBuffer;
 	}
 
 	private void CreateBuffers()
@@ -201,6 +205,8 @@ public class MolScript : MonoBehaviour
 			matTriangles = new Material(shaderTriangles);
 			//matMC.hideFlags = HideFlags.HideAndDontSave;
 		}
+
+		this.CreateRenderTextures();
 	}
 //
 
@@ -338,7 +344,11 @@ public class MolScript : MonoBehaviour
 
 		if (triangleOutput != null) triangleOutput.Release(); triangleOutput = null;
 
-		if (colorTexture != null) colorTexture.Release (); colorTexture = null;
+		//if (colorTexture != null) colorTexture.Release (); colorTexture = null;
+		for( int i = 0; i < this.mrtTex.Length; i++ ) {
+			if (mrtTex[i] != null) {mrtTex[i].Release(); mrtTex[i]=null;}
+			//if (mrtRB[i] != null) {mrtRB[i].Release(); mrtRB[i]=null;}
+		} 
 
 		Debug.Log("Cleaning resources");
 		Object.DestroyImmediate (matMC);
@@ -432,12 +442,10 @@ public class MolScript : MonoBehaviour
 		if (matTriangles!=null)
 		{
 			//camera.SetReplacementShader(matTriangles,null);
+			Graphics.SetRenderTarget (mrtTex[1]);
+			GL.Clear (true, true, new Color (1.0f, 1.0f, 1.0f, 0.0f));
+			Graphics.SetRenderTarget(mrtRB, mrtTex[1].depthBuffer);
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
-			matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
-			matTriangles.SetVector("aoGradParam",aoGradParam);
-			matTriangles.SetVector("aoFuncParam",aoFuncParam);
-			matTriangles.SetInt("aoSamplesCount",aoSamplesCount);
-
 			matTriangles.SetPass(0);
 			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
 			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 207000);
@@ -456,6 +464,12 @@ public class MolScript : MonoBehaviour
 
 	void OnRenderImage (RenderTexture source, RenderTexture destination){
 		//! iso-surface creation
+		matTriangles.SetTexture ("col0", this.mrtTex [0]);
+		matTriangles.SetTexture ("col1", this.mrtTex [1]);
+		matTriangles.SetTexture("_dataFieldTex", this.volumeTexture);
+		matTriangles.SetVector("aoGradParam",aoGradParam);
+		matTriangles.SetVector("aoFuncParam",aoFuncParam);
+		matTriangles.SetInt("aoSamplesCount",aoSamplesCount);
 		Graphics.Blit (source, destination, matTriangles, 1);
 //		matMC.SetBuffer ("r_HeadBuffer", headBuffer);
 //		matMC.SetBuffer ("r_GlobalData", globalDataBuffer);

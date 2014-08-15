@@ -11,7 +11,7 @@
 		ZWrite On
 		
 		CGPROGRAM
-		#define _dataSize 256.0
+		
 		#include "UnityCG.cginc"
 			
 		#pragma only_renderers d3d11
@@ -21,15 +21,15 @@
 		#pragma fragment FS	
 		//#pragma geometry GS	
 		
-struct GlobalTriangle
-{
-	float3 ptA;
-	float3 nmlA;
-	float3 ptB;
-	float3 nmlB;
-	float3 ptC;
-	float3 nmlC;
-};
+		struct GlobalTriangle
+		{
+			float3 ptA;
+			float3 nmlA;
+			float3 ptB;
+			float3 nmlB;
+			float3 ptC;
+			float3 nmlC;
+		};
 		
 		struct GlobalVertex
 		{
@@ -38,7 +38,173 @@ struct GlobalTriangle
 		};
 		
 		
-		sampler3D _dataFieldTex;
+																	
+		StructuredBuffer<GlobalTriangle> triangles;
+		//StructuredBuffer<GlobalVertex> triangles;
+		//StructuredBuffer<float3> triangles;
+		struct vs2gs
+		{
+			float4 pos : SV_POSITION;
+			float4 nml	: FLOAT;
+			float4 clr : COLOR;
+			float3 posOrig : FLOAT1;
+		};
+			
+		struct gs2fs
+		{
+			float4 pos : SV_POSITION;		
+			float4 nml	: FLOAT;
+		};
+			
+//		struct fsOutput
+//		{
+//			float4 color : COLOR0;		
+//			float depth	: DEPTH;
+//		};
+
+		vs2gs VS(uint id : SV_VertexID, uint inst : SV_InstanceID)
+		{
+		    vs2gs output;	
+		    //output.pos = float4(triangles[inst].pt[id],1.0);
+		    //output.nml = float4(triangles[inst].nml[id],0.0);
+		    
+		    //output.pos =  float4(id,1.0,1.0,1.0);
+//		    output.pos =  mul(UNITY_MATRIX_MVP,float4(triangles[inst*3+id].pt,1.0));
+//		    output.nml =  mul(UNITY_MATRIX_MV,float4(triangles[inst*3+id].nml,0.0));
+			GlobalTriangle gt = triangles[inst];
+			float3 offset=float3(0.5,0.5,0.5);
+			if (id==0) 
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptA,1.0));
+				output.posOrig = gt.ptA+offset;
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlA,0.0));
+		    } else
+		    if (id==1) 
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptB,1.0));
+				output.posOrig = gt.ptB+offset;
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlB,0.0));
+		    } else
+			{ 
+				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptC,1.0));
+				output.posOrig = gt.ptC+offset;
+		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlC,0.0));
+		    } 
+		    output.clr = float4(1,0,0,1);
+		    //if (inst>0) output.clr = float4(1,1,0,1);
+		    return output;
+		}
+		
+//		[maxvertexcount(3)]
+//		void GS(triangle vs2gs input[3], inout TriangleStream<gs2fs> pointStream)
+//		{
+//			gs2fs output;
+//			float3 ptA = input[0].pos;
+//			float3 ptB = input[1].pos;
+//			float3 ptC = input[2].pos;
+//			float3 nmA = input[0].nml;
+//			float3 nmB = input[1].nml;
+//			float3 nmC = input[2].nml;
+//
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptA,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmA,0.0));							
+//			pointStream.Append(output);
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptB,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmB,0.0));							
+//			pointStream.Append(output);
+//			
+//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptC,1.0));							
+//			output.nml = mul(UNITY_MATRIX_MV, float4(nmC,0.0));
+//			pointStream.Append(output);
+//
+//			pointStream.RestartStrip();	
+//		}
+		
+		//[earlydepthstencil]
+		//
+		struct fs2out 
+		{
+		float4 oColor : COLOR;
+   		float oDepth : DEPTH;
+		};
+		//fs2out FS (vs2gs input)
+		struct fsOutput
+	    {
+	        float4 col0 : COLOR0;
+        	float4 col1 : COLOR1;
+	    };
+	    
+		//float4 FS (vs2gs input) : COLOR
+		fsOutput FS (vs2gs input) : COLOR
+		{
+		
+	
+						
+			
+			
+			
+			
+			//float3 dir = normalize(input.pos - float3(0.5,0.5,0.5));
+			//float pi = 3.14159265;
+			//float u = (atan2(dir.z,dir.x)+pi)/(2.0 * pi); 
+			//float v = 0.5 + 0.5* dot(float3(0,1,0),dir);
+
+			//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
+			float3 H = normalize(input.pos - _WorldSpaceCameraPos);
+			float3 L = normalize(float3(1,1,1));
+			float diffuse_light = max(dot(L,input.nml.xyz),0.0);
+			
+			float3 R = reflect(-L, -input.nml.xyz);
+			float specular_light = pow( max(dot(R, -H), 0.0), 25 );
+			float3 clr = float3(0.5,0.2,0.6);
+			clr = diffuse_light * clr + specular_light*float3(1.0,1.0,1.0)+ clr;
+
+			
+			float2 cf = float2(0,0);//EncodeViewNormalStereo (grad);
+			float2 cs = EncodeViewNormalStereo (input.nml.xyz);
+			//return float4(cf.x,cf.y,cs.x,cs.y);
+			
+			fsOutput fso;
+			fso.col0 = float4(input.posOrig.xyz,1.0);
+			//fso.col1 = float4(cf.x,cf.y,cs.x,cs.y);
+			fso.col1 = float4(clr.x,clr.y,clr.y,1.0);
+			return fso;
+			//return float4(clr.xzy,1);
+			//return float4(ao,ao,ao,1);
+			//fs2out fout;
+			//fout.oColor = float4(1.0,1.0,1.0,1);
+			//fout.oDepth = input.pos.z/input.pos.w;
+			
+			//return float4(1.0,1.0,1.0,1);
+			//return fout;
+			//return input.clr;
+		}
+			
+		ENDCG				
+	} 
+	// Second pass
+	Pass
+		{
+			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
+
+			CGPROGRAM
+			
+			#include "UnityCG.cginc"
+				
+			#pragma only_renderers d3d11		
+			#pragma target 5.0
+			
+			#pragma vertex vert
+			#pragma fragment frag
+		
+			#define _dataSize 256.0
+			sampler2D _MainTex;
+			sampler2D col0;
+			sampler2D col1; 
+			
+					sampler3D _dataFieldTex;
 		float3 aoGradParam;
 		float3 aoFuncParam;
 		int aoSamplesCount;
@@ -93,41 +259,7 @@ struct GlobalTriangle
 			return h;
 		}
 
-
-		void BuildSamples(float level)
-		{
-			
-		}
 		
-//		void generate_samples_ao(float3 p, float3 normal, float3 dataStep,inout float3 x[50])
-//		{
-//			float t=aoGradParam.x*dataStep.x;
-//			int i;
-//			float3 xaxis = get_orthogonal_vec(normal);
-//			float3 yaxis = normalize(cross(normal,xaxis));
-//			float3 xaxisR = normalize(xaxis+yaxis);
-//			float3 yaxisR = normalize(xaxis-yaxis);
-//			float axsc = t/0.47;
-//			float3 sdir=normal;	
-//			for (i=0;i<aoSamplesCount;i++)
-//			{
-//					int j=10*i;
-//					float fi=2.0f*(float)i+1.0f;
-//					float fj=2.0f*(float)i+2.0f;
-//					x[j+0] = p - fi*t*sdir;
-//					x[j+1] = x[j]+fi*axsc*xaxisR;
-//					x[j+2] = x[j]-fi*axsc*xaxisR;
-//					x[j+3] = x[j]-fi*axsc*yaxisR;
-//					x[j+4] = x[j]+fi*axsc*yaxisR;
-//					x[j+5] = p - fj*t*sdir;
-//					//x[j+5] = p - fi*t*sdir;
-//					x[j+6] = x[j+5]+fj*axsc*xaxis;
-//					x[j+7] = x[j+5]-fj*axsc*xaxis;
-//					x[j+8] = x[j+5]-fj*axsc*yaxis;
-//					x[j+9] = x[j+5]+fj*axsc*yaxis;
-//
-//			}
-//		}
 		
 		float OcclusionFactor(float3 p, float3 normal, float3 dataStep, float h2)
 		{
@@ -243,178 +375,6 @@ struct GlobalTriangle
 				//if (samplesCount>0) return clamp(ao,0,1);
 				return 0;
 		}
-		
-		uint PackFloat4IntoUint(float4 vValue)
-		{
-		    return ( ((uint)(vValue.x*255)) << 24 ) | ( ((uint)(vValue.y*255)) << 16 ) | ( ((uint)(vValue.z*255)) << 8) | (uint)(vValue.w * 255);
-		}
-
-		float4 UnpackUintIntoFloat4(uint uValue)
-		{
-		    return float4( ( (uValue & 0xFF000000)>>24 ) / 255.0, ( (uValue & 0x00FF0000)>>16 ) / 255.0, ( (uValue & 0x0000FF00)>>8 ) / 255.0, ( (uValue & 0x000000FF) ) / 255.0);
-		}
-
-													
-		StructuredBuffer<GlobalTriangle> triangles;
-		//StructuredBuffer<GlobalVertex> triangles;
-		//StructuredBuffer<float3> triangles;
-		struct vs2gs
-		{
-			float4 pos : SV_POSITION;
-			float4 nml	: FLOAT;
-			float4 clr : COLOR;
-			float3 posOrig : FLOAT1;
-		};
-			
-		struct gs2fs
-		{
-			float4 pos : SV_POSITION;		
-			float4 nml	: FLOAT;
-		};
-			
-//		struct fsOutput
-//		{
-//			float4 color : COLOR0;		
-//			float depth	: DEPTH;
-//		};
-
-		vs2gs VS(uint id : SV_VertexID, uint inst : SV_InstanceID)
-		{
-		    vs2gs output;	
-		    //output.pos = float4(triangles[inst].pt[id],1.0);
-		    //output.nml = float4(triangles[inst].nml[id],0.0);
-		    
-		    //output.pos =  float4(id,1.0,1.0,1.0);
-//		    output.pos =  mul(UNITY_MATRIX_MVP,float4(triangles[inst*3+id].pt,1.0));
-//		    output.nml =  mul(UNITY_MATRIX_MV,float4(triangles[inst*3+id].nml,0.0));
-			GlobalTriangle gt = triangles[inst];
-			float3 offset=float3(0.5,0.5,0.5);
-			if (id==0) 
-			{ 
-				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptA,1.0));
-				output.posOrig = gt.ptA+offset;
-		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlA,0.0));
-		    } else
-		    if (id==1) 
-			{ 
-				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptB,1.0));
-				output.posOrig = gt.ptB+offset;
-		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlB,0.0));
-		    } else
-			{ 
-				output.pos =  mul(UNITY_MATRIX_MVP,float4(gt.ptC,1.0));
-				output.posOrig = gt.ptC+offset;
-		    	output.nml =  mul(UNITY_MATRIX_MV,float4(gt.nmlC,0.0));
-		    } 
-		    output.clr = float4(1,0,0,1);
-		    //if (inst>0) output.clr = float4(1,1,0,1);
-		    return output;
-		}
-		
-//		[maxvertexcount(3)]
-//		void GS(triangle vs2gs input[3], inout TriangleStream<gs2fs> pointStream)
-//		{
-//			gs2fs output;
-//			float3 ptA = input[0].pos;
-//			float3 ptB = input[1].pos;
-//			float3 ptC = input[2].pos;
-//			float3 nmA = input[0].nml;
-//			float3 nmB = input[1].nml;
-//			float3 nmC = input[2].nml;
-//
-//			
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptA,1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(nmA,0.0));							
-//			pointStream.Append(output);
-//			
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptB,1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(nmB,0.0));							
-//			pointStream.Append(output);
-//			
-//			output.pos = mul(UNITY_MATRIX_MVP, float4(ptC,1.0));							
-//			output.nml = mul(UNITY_MATRIX_MV, float4(nmC,0.0));
-//			pointStream.Append(output);
-//
-//			pointStream.RestartStrip();	
-//		}
-		
-		//[earlydepthstencil]
-		//
-		struct fs2out 
-		{
-		float4 oColor : COLOR;
-   		float oDepth : DEPTH;
-		};
-		//fs2out FS (vs2gs input)
-		float4 FS (vs2gs input) : COLOR
-		{
-		
-			//! compute ao
-			float dataStepSize = _dataSize;
-			float h2 = dataStepSize*2.0;
-			float3 dataStep = float3(1.0/dataStepSize,1.0/dataStepSize,1.0/dataStepSize);
-			float3 grad = ComputeGradient(input.posOrig,dataStep,h2);
-			float ao = OcclusionFactor(input.posOrig, normalize(grad), dataStep, h2);
-			float3 lightDir = normalize(_WorldSpaceLightPos0.xyz-input.posOrig);
-			float shadow=0.0;
-			//if (dot(lightDir,grad)>0.0)
-			shadow = OcclusionFactorOneRay(input.posOrig, lightDir, dataStep, h2);
-			ao=(1.0-ao);
-			//ao*=(1.0-shadow);		
-						
-			
-			
-			
-			
-			//float3 dir = normalize(input.pos - float3(0.5,0.5,0.5));
-			//float pi = 3.14159265;
-			//float u = (atan2(dir.z,dir.x)+pi)/(2.0 * pi); 
-			//float v = 0.5 + 0.5* dot(float3(0,1,0),dir);
-
-			//float d = abs(dot(normalize(_WorldSpaceLightPos0.xyz),-normal));
-			float3 H = normalize(input.pos - _WorldSpaceCameraPos);
-			float3 L = normalize(float3(1,1,1));
-			float diffuse_light = max(dot(L,input.nml.xyz),0.0);
-			
-			float3 R = reflect(-L, -input.nml.xyz);
-			float specular_light = pow( max(dot(R, -H), 0.0), 25 );
-			float3 clr = float3(0.5,0.2,0.6);
-			clr = diffuse_light * clr + ao*specular_light*float3(1.0,1.0,1.0)+ ao*clr;
-
-			PackFloat4IntoUint
-//			float2 cf = EncodeViewNormalStereo (input.posOrig);
-//			float2 cs = EncodeViewNormalStereo (input.nml.xyz);
-			return float4(cf.x,cf.y,cs.x,cs.y);
-			
-			//return float4(clr.xzy,1);
-			//return float4(ao,ao,ao,1);
-			//fs2out fout;
-			//fout.oColor = float4(1.0,1.0,1.0,1);
-			//fout.oDepth = input.pos.z/input.pos.w;
-			
-			//return float4(1.0,1.0,1.0,1);
-			//return fout;
-			//return input.clr;
-		}
-			
-		ENDCG				
-	} 
-	// Second pass
-	Pass
-		{
-			ZWrite Off ZTest Always Cull Off Fog { Mode Off }
-
-			CGPROGRAM
-			
-			#include "UnityCG.cginc"
-				
-			#pragma only_renderers d3d11		
-			#pragma target 5.0
-			
-			#pragma vertex vert
-			#pragma fragment frag
-		
-			sampler2D _MainTex;
 
 			struct v2f
 			{
@@ -432,19 +392,41 @@ struct GlobalTriangle
 
 			float4 frag (v2f i) : COLOR0
 			{
-				float4 c = tex2D (_MainTex, i.uv);
-				float3 pos = DecodeViewNormalStereo (float4(c.x,c.y,0,0));
-				float3 nml = DecodeViewNormalStereo (float4(c.z,c.w,0,0));
+				//float4 c = tex2D (_MainTex, i.uv);
+				float4 a = tex2D (col0, i.uv);
+				float4 b = tex2D (col1, i.uv);
 				
-				float3 H = normalize(pos - _WorldSpaceCameraPos);
-				float3 L = normalize(float3(1,1,1));
-				float diffuse_light = max(dot(L,nml),0.0);
-			
-				float3 R = reflect(-L, -nml);
-				float specular_light = pow( max(dot(R, -H), 0.0), 25 );
-				float3 clr = float3(0.5,0.2,0.6);
-				clr = diffuse_light * clr + specular_light*float3(1.0,1.0,1.0)+ clr;
-				return float4(clr.x,clr.y,clr.z,1.0);
+				if (b.w<1)
+					discard;
+				//! compute ao
+				float dataStepSize = _dataSize;
+				float h2 = dataStepSize*2.0;
+				float3 dataStep = float3(1.0/dataStepSize,1.0/dataStepSize,1.0/dataStepSize);
+				float3 grad = ComputeGradient(a.xyz,dataStep,h2);
+				float ao = OcclusionFactor(a.xyz, normalize(grad), dataStep, h2);
+				float3 lightDir = normalize(_WorldSpaceLightPos0.xyz-a.xyz);
+				float shadow=0.0;
+				//if (dot(lightDir,grad)>0.0)
+				shadow = OcclusionFactorOneRay(a.xyz, lightDir, dataStep, h2);
+				ao=(1.0-ao);
+				//ao*=(1.0-shadow);	
+				
+				
+//				float3 gradVoxel = DecodeViewNormalStereo (float4(b.x,b.y,0,0));
+//				float3 nmlVertex = DecodeViewNormalStereo (float4(b.z,b.w,0,0));
+//				float3 
+//				
+//				float3 H = normalize(pos - _WorldSpaceCameraPos);
+//				float3 L = normalize(float3(1,1,1));
+//				float diffuse_light = max(dot(L,nml),0.0);
+//			
+//				float3 R = reflect(-L, -nml);
+//				float specular_light = pow( max(dot(R, -H), 0.0), 25 );
+//				float3 clr = float3(0.5,0.2,0.6);
+//				clr = diffuse_light * clr + specular_light*float3(1.0,1.0,1.0)+ clr;
+				
+				//return float4(clr.x,clr.y,clr.z,1.0);
+				return float4(ao,ao,ao,1.0);
 			}
 			
 			ENDCG
