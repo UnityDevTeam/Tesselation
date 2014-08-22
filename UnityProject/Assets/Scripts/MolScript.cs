@@ -13,6 +13,8 @@ public class MolScript : MonoBehaviour
 	
 	private RenderTexture colorTexture;
 	private RenderTexture colorTexture2;	
+	private RenderBuffer depthBuffer;
+
 	
 	private ComputeBuffer cbDrawArgs;
 	private ComputeBuffer cbPoints;
@@ -22,6 +24,10 @@ public class MolScript : MonoBehaviour
 	public ComputeBuffer GetCbMols()
 	{
 		return cbMols;
+	}
+
+	void Start () {
+		camera.depthTextureMode = DepthTextureMode.Depth;
 	}
 
 	private void CreateResources ()
@@ -90,6 +96,7 @@ public class MolScript : MonoBehaviour
 		if (cbMols != null) cbMols.Release(); cbMols = null;
 		
 		if (colorTexture != null) colorTexture.Release(); colorTexture = null;
+		if (depthTexture != null) depthTexture.Release(); depthTexture = null;
 
 		DestroyImmediate (mat);
 		mat = null;
@@ -113,7 +120,7 @@ public class MolScript : MonoBehaviour
 		Graphics.ClearRandomWriteTargets ();		
 		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
 	
-		Graphics.SetRenderTarget (src);
+		Graphics.SetRenderTarget (src.colorBuffer,src.depthBuffer);
 //		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
 		mat.SetFloat ("spriteSize", molScale * 1.0f);
 		mat.SetColor ("spriteColor", Color.white);
@@ -125,7 +132,8 @@ public class MolScript : MonoBehaviour
 		mat.SetPass(3);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 
-		Graphics.Blit (src, dst);
+		//Graphics.Blit (src, dst);
+		Graphics.Blit (src, dst, mat, 4);
 	}
 
 	void OnDisable ()
