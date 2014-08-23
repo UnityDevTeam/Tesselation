@@ -234,8 +234,10 @@ Shader "Custom/MolShader"
 		// Fourth pass
 		Pass
 		{		
-			//ZWrite On
-			ZWrite Off
+			ZWrite On
+			ZTest On
+			//Blend Off
+			//ZWrite Off
 						
 			CGPROGRAM	
 					
@@ -325,9 +327,10 @@ Shader "Custom/MolShader"
 				float atomEyeDepth = LinearEyeDepth(input.pos.z);				
 				float edgeFactor = clamp((ndotl- 0.4) * 50, 0, 1);
 				
-//				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;
-				fragColor = spriteColor * edgeFactor;								
+				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;
+				//fragColor = spriteColor * edgeFactor;								
 				fragDepth = 1 / ((atomEyeDepth + input.size * -normal.z) * _ZBufferParams.z) - _ZBufferParams.w / _ZBufferParams.z;				
+				fragColor.x=fragDepth;
 			}			
 			ENDCG	
 		}	
@@ -338,35 +341,194 @@ Shader "Custom/MolShader"
 			#pragma fragment frag
 			#include "UnityCG.cginc"
 
-			sampler2D _CameraDepthTexture;
+			sampler2D _DepthTex;
+			sampler2D _InputTex;
+			
+			
+			const float IaoCap = 0.99;
+			const float IaoMultiplier=10.0;
+			const float IdepthTolerance=0.001;
+			const float Iaorange = 1000.0;// units in space the AO effect extends to (this gets divided by the camera far range
+			const float IaoScale = 0.5;
 
-			struct v2f {
-			   float4 pos : SV_POSITION;
-			   float4 scrPos:TEXCOORD1;
+			float readDepth( in float2 coord ) {
+				float depthValue = 0.5*(Linear01Depth(tex2D (_InputTex, coord).x)+1.0);
+				return depthValue;
+				
+//				float n = 0.3; // camera z near
+//				float f = 1000.0; // camera z far
+//				float z = texture2D( texture0, coord ).x;
+//				return (2.0 * n) / (f + n - z * (f - n));	
+			}
+
+
+			float compareDepths( in float depth1, in float depth2 ) {
+			  float ao=0.0;
+				//float diff = sqrt( clamp( 1.0-(depth1-depth2) / (Iaorange/(camerarange.y-camerarange.x) ),0.0,1.0) );
+				if (depth2>0.0 && depth1>0.0) 
+			  	{
+					//float diff = sqrt( clamp( 1.0-(depth1-depth2),0.0,1.0) );
+					float diff = sqrt( clamp( (depth1-depth2),0.0,1.0) );
+					ao = min(IaoCap,max(0.0,depth1-depth2-IdepthTolerance) * IaoMultiplier) * min(diff,0.1);
+				}
+				return ao;
+			}
+
+//			//Fragment Shader
+//			half4 frag (v2f i) : COLOR{
+//			   //float depthValue = Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
+//			   float depthValue = Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
+//			   //float Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
+//			   half4 depth;
+//
+//			   depth.r = depthValue;
+//			   depth.g = depthValue;
+//			   depth.b = depthValue;
+//
+//			   depth.a = 1;
+//			   return depth;
+//			}
+			
+			struct v2f
+			{
+				float4 pos : SV_POSITION;
+				float2 uv : TEXCOORD0;
 			};
 
-			//Vertex Shader
-			v2f vert (appdata_base v){
-			   v2f o;
-			   o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
-			   o.scrPos=ComputeScreenPos(o.pos);
-			   //for some reason, the y position of the depth texture comes out inverted
-			   o.scrPos.y = 1 - o.scrPos.y;
-			   return o;
+			v2f vert (appdata_base v)
+			{
+				v2f o;
+				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				o.uv = v.texcoord;
+				return o;
+			}			
+
+			float4 frag (v2f i) : COLOR0
+			{
+				//float depthValue = Linear01Depth(tex2D (_DepthTex, i.uv).r);
+				//float depthValue = Linear01Depth(tex2D (_InputTex, i.uv).r);
+				float4 clr = tex2D (_InputTex, i.uv);
+				float2 texCoord = i.uv;
+				if (clr.x==0) discard;
+				float depth = readDepth(texCoord);
+				return float4(depth,depth,depth,1.0);
+				//if (depth==0) discard;
+				float d;
+				float pw = 5.0 / _ScreenParams.x;
+				float ph = 5.0 / _ScreenParams.y;
+
+				float aoCap = IaoCap;
+
+				float ao = 0.0;
+				
+				//float aoMultiplier=10000.0;
+				float aoMultiplier= IaoMultiplier;
+				float depthTolerance = IdepthTolerance;
+				float aoscale= IaoScale;
+
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+			    
+				d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;    
+				
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+				d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;    
+			    
+
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				
+			  	d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;    
+
+			    
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+			    d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+
+
+				// ao/=4.0;
+			    ao/=8.0;
+			    ao = 1.0-ao;
+			    //ao = 1.5*ao;
+
+			    ao = clamp( ao, 0.0, 1.0 );
+			    clr = float4(ao,ao,ao,1.0);
+				return clr;
+				//return float4(ao,ao,ao,1);
 			}
-
-			//Fragment Shader
-			half4 frag (v2f i) : COLOR{
-			   float depthValue = Linear01Depth (tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.scrPos)).r);
-			   half4 depth;
-
-			   depth.r = depthValue;
-			   depth.g = depthValue;
-			   depth.b = depthValue;
-
-			   depth.a = 1;
-			   return depth;
-			}
+			
+			
 			ENDCG
 			}			
 	}

@@ -14,6 +14,7 @@ public class MolScript : MonoBehaviour
 	private RenderTexture colorTexture;
 	private RenderTexture colorTexture2;	
 	private RenderBuffer depthBuffer;
+	private RenderTexture depthTexture;
 
 	
 	private ComputeBuffer cbDrawArgs;
@@ -32,53 +33,54 @@ public class MolScript : MonoBehaviour
 
 	private void CreateResources ()
 	{
-		if (cbDrawArgs == null)
-		{
+		if (cbDrawArgs == null) {
 			cbDrawArgs = new ComputeBuffer (1, 16, ComputeBufferType.DrawIndirect);
 			var args = new int[4];
-			args[0] = 0;
-			args[1] = 1;
-			args[2] = 0;
-			args[3] = 0;
+			args [0] = 0;
+			args [1] = 1;
+			args [2] = 0;
+			args [3] = 0;
 			cbDrawArgs.SetData (args);
 		}
 
-		if (cbAtoms == null)
-		{
-			var atoms = PdbReader.ReadPdbFileSimple();
+		if (cbAtoms == null) {
+			var atoms = PdbReader.ReadPdbFileSimple ();
 
 			cbAtoms = new ComputeBuffer (atoms.Count, 16);
-			cbAtoms.SetData (atoms.ToArray());
+			cbAtoms.SetData (atoms.ToArray ());
 		}
 		
-		if (cbMols == null)
-		{
+		if (cbMols == null) {
 			Vector4[] molPositions = new Vector4[molCount];
 			
-			for (var i=0; i < molCount; i++)
-			{
-				molPositions[i].Set((UnityEngine.Random.value - 0.5f) * domainSize.x, 
+			for (var i=0; i < molCount; i++) {
+				molPositions [i].Set ((UnityEngine.Random.value - 0.5f) * domainSize.x, 
 				                    (UnityEngine.Random.value - 0.5f) * domainSize.y,
 				                    (UnityEngine.Random.value - 0.5f) * domainSize.z,
 				                    1);
 			}
 			
 			cbMols = new ComputeBuffer (molPositions.Length, 16); 
-			cbMols.SetData(molPositions);
+			cbMols.SetData (molPositions);
 		}
 		
-		if (cbPoints == null)
-		{
+		if (cbPoints == null) {
 			cbPoints = new ComputeBuffer (Screen.width * Screen.height, 16, ComputeBufferType.Append);
 		}
 		
-		if (colorTexture == null)
-		{
+		if (colorTexture == null) {
 			colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
 			colorTexture.filterMode = FilterMode.Point;
 			colorTexture.anisoLevel = 1;
 			colorTexture.antiAliasing = 1;
-			colorTexture.Create();
+			colorTexture.Create ();
+		}
+
+		if (depthTexture == null) 
+		{
+			depthBuffer = new RenderBuffer();
+			depthTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.Depth); 
+			depthBuffer = depthTexture.depthBuffer;
 		}
 
 		if(mat == null)
@@ -86,6 +88,8 @@ public class MolScript : MonoBehaviour
 			mat = new Material(shader);
 			mat.hideFlags = HideFlags.HideAndDontSave;
 		}
+
+
 	}
 	
 	private void ReleaseResources ()
@@ -120,19 +124,23 @@ public class MolScript : MonoBehaviour
 		Graphics.ClearRandomWriteTargets ();		
 		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
 	
-		Graphics.SetRenderTarget (src.colorBuffer,src.depthBuffer);
-//		GL.Clear (true, true, new Color (0.0f, 0.0f, 0.0f, 0.0f));
+		//Graphics.SetRenderTarget (src.colorBuffer,depthTexture.depthBuffer);
+		Graphics.SetRenderTarget (src);
+		GL.Clear (true, true, new Color (1.0f, 1.0f, 1.0f, 0.0f));
 		mat.SetFloat ("spriteSize", molScale * 1.0f);
 		mat.SetColor ("spriteColor", Color.white);
 		mat.SetBuffer ("atomPositions", cbPoints);
 
-		mat.SetPass(2);
-		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
-
+//		mat.SetPass(2);
+//		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
+		//Graphics.SetRenderTarget (src.colorBuffer,depthTexture.depthBuffer);
+		//Graphics.SetRenderTarget (src.colorBuffer,depthBuffer);
 		mat.SetPass(3);
 		Graphics.DrawProceduralIndirect(MeshTopology.Points, cbDrawArgs);
 
 		//Graphics.Blit (src, dst);
+		//mat.SetTexture ("_DepthTex", depthTexture);
+		mat.SetTexture ("_InputTex", src);
 		Graphics.Blit (src, dst, mat, 4);
 	}
 
