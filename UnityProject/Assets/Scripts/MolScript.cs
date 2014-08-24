@@ -69,8 +69,9 @@ public class MolScript : MonoBehaviour
 		}
 		
 		if (colorTexture == null) {
-			colorTexture = new RenderTexture (Screen.width, Screen.height, 24, RenderTextureFormat.ARGBFloat);
+			colorTexture = new RenderTexture (Screen.width, Screen.height, 32, RenderTextureFormat.ARGBFloat);
 			colorTexture.filterMode = FilterMode.Point;
+			colorTexture.depth =
 			colorTexture.anisoLevel = 1;
 			colorTexture.antiAliasing = 1;
 			colorTexture.Create ();
@@ -125,7 +126,8 @@ public class MolScript : MonoBehaviour
 		ComputeBuffer.CopyCount (cbPoints, cbDrawArgs, 0);
 	
 		//Graphics.SetRenderTarget (src.colorBuffer,depthTexture.depthBuffer);
-		Graphics.SetRenderTarget (src);
+		//Graphics.SetRenderTarget (src);
+		Graphics.SetRenderTarget (colorTexture);
 		GL.Clear (true, true, new Color (1.0f, 1.0f, 1.0f, 0.0f));
 		mat.SetFloat ("spriteSize", molScale * 1.0f);
 		mat.SetColor ("spriteColor", Color.white);
@@ -140,7 +142,8 @@ public class MolScript : MonoBehaviour
 
 		//Graphics.Blit (src, dst);
 		//mat.SetTexture ("_DepthTex", depthTexture);
-		mat.SetTexture ("_InputTex", src);
+		//mat.SetTexture ("_InputTex", src);
+		mat.SetTexture ("_InputTex", colorTexture);
 		Graphics.Blit (src, dst, mat, 4);
 	}
 

@@ -234,8 +234,8 @@ Shader "Custom/MolShader"
 		// Fourth pass
 		Pass
 		{		
-			ZWrite On
-			ZTest On
+//			ZWrite On
+//			ZTest On
 			//Blend Off
 			//ZWrite Off
 						
@@ -330,29 +330,34 @@ Shader "Custom/MolShader"
 				fragColor = (atomEyeDepth < 10) ? spriteColor * edgeFactor : spriteColor;
 				//fragColor = spriteColor * edgeFactor;								
 				fragDepth = 1 / ((atomEyeDepth + input.size * -normal.z) * _ZBufferParams.z) - _ZBufferParams.w / _ZBufferParams.z;				
-				fragColor.x=fragDepth;
+				fragColor.w=fragDepth;
 			}			
 			ENDCG	
 		}	
 		//fifth pass
 		Pass{
+			ZTest On
+			Zwrite On
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
 			#include "UnityCG.cginc"
 
-			sampler2D _DepthTex;
+			
+			//sampler2D _DepthTex;
 			sampler2D _InputTex;
 			
 			
-			const float IaoCap = 0.99;
-			const float IaoMultiplier=10.0;
-			const float IdepthTolerance=0.001;
-			const float Iaorange = 1000.0;// units in space the AO effect extends to (this gets divided by the camera far range
-			const float IaoScale = 0.5;
+			static float IaoCap = 0.99f;
+			static float IaoMultiplier=100.0f;
+			static float IdepthTolerance=0.001;
+			static float Iaorange = 1000.0;// units in space the AO effect extends to (this gets divided by the camera far range
+			static float IaoScale = 0.5;
 
 			float readDepth( in float2 coord ) {
-				float depthValue = 0.5*(Linear01Depth(tex2D (_InputTex, coord).x)+1.0);
+				//float depthValue = Linear01Depth(tex2D (_InputTex, coord).w);
+				//float depthValue = tex2D (_InputTex, coord).w/10.0;
+				float depthValue = DECODE_EYEDEPTH(tex2D (_InputTex, coord).w)/1.0;
 				return depthValue;
 				
 //				float n = 0.3; // camera z near
@@ -369,26 +374,14 @@ Shader "Custom/MolShader"
 			  	{
 					//float diff = sqrt( clamp( 1.0-(depth1-depth2),0.0,1.0) );
 					float diff = sqrt( clamp( (depth1-depth2),0.0,1.0) );
+					if (diff<0.2)
 					ao = min(IaoCap,max(0.0,depth1-depth2-IdepthTolerance) * IaoMultiplier) * min(diff,0.1);
+					//ao = min(IaoCap, 0.0) * 0.1;
+					//ao=0.0;
 				}
 				return ao;
 			}
 
-//			//Fragment Shader
-//			half4 frag (v2f i) : COLOR{
-//			   //float depthValue = Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
-//			   float depthValue = Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
-//			   //float Linear01Depth (tex2Dproj(_DepthTex, UNITY_PROJ_COORD(i.scrPos)).r);
-//			   half4 depth;
-//
-//			   depth.r = depthValue;
-//			   depth.g = depthValue;
-//			   depth.b = depthValue;
-//
-//			   depth.a = 1;
-//			   return depth;
-//			}
-			
 			struct v2f
 			{
 				float4 pos : SV_POSITION;
@@ -409,9 +402,9 @@ Shader "Custom/MolShader"
 				//float depthValue = Linear01Depth(tex2D (_InputTex, i.uv).r);
 				float4 clr = tex2D (_InputTex, i.uv);
 				float2 texCoord = i.uv;
-				if (clr.x==0) discard;
+				if (clr.w==0.0) return float4(1,1,1,0);
 				float depth = readDepth(texCoord);
-				return float4(depth,depth,depth,1.0);
+				//return float4(depth,depth,depth,1.0);
 				//if (depth==0) discard;
 				float d;
 				float pw = 5.0 / _ScreenParams.x;
