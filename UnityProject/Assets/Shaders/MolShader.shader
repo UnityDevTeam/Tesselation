@@ -2,7 +2,7 @@ Shader "Custom/MolShader"
 {
 	Properties
 	{
-		
+		_MainTex ("Texture ", 2D) = "white" {}
 	}
 	
 	SubShader 
@@ -334,19 +334,38 @@ Shader "Custom/MolShader"
 			}			
 			ENDCG	
 		}	
-		//fifth pass
-		Pass{
+		
+		Pass
+		{
+            CGPROGRAM
+            #pragma vertex vert_img
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+
+			uniform sampler2D _MainTex;
+
+            float4 frag(v2f_img i) : COLOR 
+            {
+                return tex2D(_MainTex, i.uv);
+            }
+            ENDCG
+        }
+		
+		Pass
+		{
 			ZTest On
-			Zwrite On
+			ZWrite On
+			
 			CGPROGRAM
-			#pragma vertex vert
-			#pragma fragment frag
+			
+			#pragma vertex vert_img
+            #pragma fragment frag
+            
 			#include "UnityCG.cginc"
 
-			
-			//sampler2D _DepthTex;
 			sampler2D _InputTex;
-			
+			sampler2D _DepthTex;			
 			
 			static float IaoCap = 0.99f;
 			static float IaoMultiplier=100.0f;
@@ -354,7 +373,8 @@ Shader "Custom/MolShader"
 			static float Iaorange = 1000.0;// units in space the AO effect extends to (this gets divided by the camera far range
 			static float IaoScale = 0.5;
 
-			float readDepth( in float2 coord ) {
+			float readDepth( in float2 coord ) 
+			{
 				//float depthValue = Linear01Depth(tex2D (_InputTex, coord).w);
 				//float depthValue = tex2D (_InputTex, coord).w/10.0;
 				float depthValue = DECODE_EYEDEPTH(tex2D (_InputTex, coord).w)/1.0;
@@ -367,8 +387,9 @@ Shader "Custom/MolShader"
 			}
 
 
-			float compareDepths( in float depth1, in float depth2 ) {
-			  float ao=0.0;
+			float compareDepths( in float depth1, in float depth2 )
+			{
+			  	float ao=0.0;
 				//float diff = sqrt( clamp( 1.0-(depth1-depth2) / (Iaorange/(camerarange.y-camerarange.x) ),0.0,1.0) );
 				if (depth2>0.0 && depth1>0.0) 
 			  	{
@@ -380,32 +401,24 @@ Shader "Custom/MolShader"
 					//ao=0.0;
 				}
 				return ao;
-			}
+			}					
 
-			struct v2f
-			{
-				float4 pos : SV_POSITION;
-				float2 uv : TEXCOORD0;
-			};
-
-			v2f vert (appdata_base v)
-			{
-				v2f o;
-				o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
-				o.uv = v.texcoord;
-				return o;
-			}			
-
-			float4 frag (v2f i) : COLOR0
+			float4 frag (v2f_img i) : COLOR0
 			{
 				//float depthValue = Linear01Depth(tex2D (_DepthTex, i.uv).r);
 				//float depthValue = Linear01Depth(tex2D (_InputTex, i.uv).r);
+				
+				return tex2D(_DepthTex, i.uv);
+				
 				float4 clr = tex2D (_InputTex, i.uv);
 				float2 texCoord = i.uv;
+				
 				if (clr.w==0.0) return float4(1,1,1,0);
 				float depth = readDepth(texCoord);
-				//return float4(depth,depth,depth,1.0);
-				//if (depth==0) discard;
+				
+//				return float4(depth,depth,depth,1.0);
+//				if (depth==0) discard;
+				
 				float d;
 				float pw = 5.0 / _ScreenParams.x;
 				float ph = 5.0 / _ScreenParams.y;
@@ -483,8 +496,7 @@ Shader "Custom/MolShader"
 				d=readDepth( float2(texCoord.x,texCoord.y+ph));
 				ao+=compareDepths(depth,d)/aoscale;
 				d=readDepth( float2(texCoord.x,texCoord.y-ph));
-				ao+=compareDepths(depth,d)/aoscale;    
-
+				ao+=compareDepths(depth,d)/aoscale; 
 			    
 				pw*=2.0;
 				ph*=2.0;
@@ -509,7 +521,6 @@ Shader "Custom/MolShader"
 				d=readDepth( float2(texCoord.x,texCoord.y-ph));
 				ao+=compareDepths(depth,d)/aoscale;
 
-
 				// ao/=4.0;
 			    ao/=8.0;
 			    ao = 1.0-ao;
@@ -523,7 +534,7 @@ Shader "Custom/MolShader"
 			
 			
 			ENDCG
-			}			
+		}			
 	}
 	Fallback Off
 }	
