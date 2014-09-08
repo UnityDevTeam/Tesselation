@@ -27,7 +27,8 @@ public static class PdbReader
 		van_der_waals["ZN"]=1.148f;
 		van_der_waals["I"]=1.748f;	
 		
-		string path = Application.dataPath + "/Mol/p3.pdb";
+		//string path = Application.dataPath + "/Mol/p3.pdb";
+		string path = Application.dataPath + "/Mol/1FQY.pdb";
 
 		Debug.Log (path);
 

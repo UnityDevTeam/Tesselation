@@ -208,6 +208,7 @@
 		float3 aoGradParam;
 		float3 aoFuncParam;
 		int aoSamplesCount;
+		float3 aoShadowParam;
 		
 		float SampleData3( float3 p){
 			return tex3Dlod(_dataFieldTex,float4(p.xyz,0)).x;	
@@ -409,7 +410,7 @@
 				//if (dot(lightDir,grad)>0.0)
 				shadow = OcclusionFactorOneRay(a.xyz, lightDir, dataStep, h2);
 				ao=(1.0-ao);
-				//ao*=(1.0-shadow);	
+				ao*=(1.0-aoShadowParam.x*shadow);	
 				
 				
 //				float3 gradVoxel = DecodeViewNormalStereo (float4(b.x,b.y,0,0));
