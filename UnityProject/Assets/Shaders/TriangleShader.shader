@@ -167,7 +167,7 @@
 			//return float4(cf.x,cf.y,cs.x,cs.y);
 			
 			fsOutput fso;
-			fso.col0 = float4(input.posOrig.xyz,1.0);
+			fso.col0 = float4(input.posOrig.xyz,input.pos.z/input.pos.w);
 			//fso.col1 = float4(cf.x,cf.y,cs.x,cs.y);
 			fso.col1 = float4(clr.x,clr.y,clr.y,1.0);
 			return fso;
@@ -219,27 +219,31 @@
 						  				 float3 gf, 	//gradient at the sample
 						  				 float f)		//function value at the sample
 		{
-			float _obscurence =  exp(-5.0f*dist);
-			//float _obscurence =  exp(-10.5f*dist);
-			//float _obscurence =  1.0;
+//			float _obscurence =  exp(-5.0f*dist);
+//			float cosR = 1.0;
+//			float cosRD = dot(gf,normal);
+//			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
+//			_obscurence = aoFuncParam.x*(cosR*_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			
+			float _obscurence =  exp(-10.0f*dist);
+			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			//_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			//_obscurence = aoFuncParam.x/(1.0f+exp(-aoFuncParam.y*f-_obscurence-aoFuncParam.z));
 			float cosR = 1.0;
 			float cosRD = dot(gf,normal);
-			//cosR = 1.0f/(1.0f+exp(8.0f*cosRD-2.0f));
 			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
-			//cosR=1.0;
-			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0f*f-4.0));
-			//_obscurence = (cosR*_obscurence)/(1.0f+exp(-8.0*f-1.0));
-			_obscurence = aoFuncParam.x*(cosR*_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			_obscurence = clamp(cosR*aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
 			return _obscurence;
-			//return 1.0f;
 		}
 		
 		float compute_obscurance_no_gradient(float dist,	//distance of the sample from the surface point
 						  				     float f)		//function value at the sample
 		{
-			float _obscurence =  exp(-5.0f*dist);
+			float _obscurence =  exp(-10.0f*dist);
 			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
-			_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			//_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			//_obscurence = aoFuncParam.x/(1.0f+exp(-aoFuncParam.y*f-_obscurence-aoFuncParam.z));
+			_obscurence = clamp(aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
 			return _obscurence;
 		}
 		
@@ -281,25 +285,41 @@
 				float3 sdir=normal;
 				
 				
+//				for (i=0;i<aoSamplesCount;i++)
+//				{
+//						int j=10*i;
+//						float fi=2.0f*(float)i+1.0f;
+//						float fj=2.0f*(float)i+2.0f;
+//						x[j+0] = p - fi*t*sdir;
+//						x[j+1] = x[j]+fi*axsc*xaxisR;
+//						x[j+2] = x[j]-fi*axsc*xaxisR;
+//						x[j+3] = x[j]-fi*axsc*yaxisR;
+//						x[j+4] = x[j]+fi*axsc*yaxisR;
+//						x[j+5] = p - fj*t*sdir;
+//						//x[j+5] = p - fi*t*sdir;
+//						x[j+6] = x[j+5]+fj*axsc*xaxis;
+//						x[j+7] = x[j+5]-fj*axsc*xaxis;
+//						x[j+8] = x[j+5]-fj*axsc*yaxis;
+//						x[j+9] = x[j+5]+fj*axsc*yaxis;
+//						t*=1.5;
+//						
+//
+//				}
+				
 				for (i=0;i<aoSamplesCount;i++)
 				{
 						int j=10*i;
-						float fi=2.0f*(float)i+1.0f;
-						float fj=2.0f*(float)i+2.0f;
+						float fi=10.0f*(float)i+1.0f;
 						x[j+0] = p - fi*t*sdir;
-						x[j+1] = x[j]+fi*axsc*xaxisR;
-						x[j+2] = x[j]-fi*axsc*xaxisR;
-						x[j+3] = x[j]-fi*axsc*yaxisR;
-						x[j+4] = x[j]+fi*axsc*yaxisR;
-						x[j+5] = p - fj*t*sdir;
-						//x[j+5] = p - fi*t*sdir;
-						x[j+6] = x[j+5]+fj*axsc*xaxis;
-						x[j+7] = x[j+5]-fj*axsc*xaxis;
-						x[j+8] = x[j+5]-fj*axsc*yaxis;
-						x[j+9] = x[j+5]+fj*axsc*yaxis;
-						t*=1.5;
-						
-
+						x[j+1] = x[j+0] - t*sdir;
+						x[j+2] = x[j+1] - t*sdir;
+						x[j+3] = x[j+2] - t*sdir;
+						x[j+4] = x[j+3] - t*sdir;
+						x[j+5] = x[j+4] - t*sdir;
+						x[j+6] = x[j+5] - t*sdir;
+						x[j+7] = x[j+6] - t*sdir;
+						x[j+8] = x[j+7] - t*sdir;
+						x[j+9] = x[j+8] - t*sdir;
 				}
 				
 				for (i=0;i<10*aoSamplesCount;i++)
@@ -312,7 +332,7 @@
 						//float3 xpv = normalize(p-x[i]);
 						float3 grad;
 						float aonow;
-						if (xpl<8.0*t)
+						if (xpl<aoShadowParam.y*t)
 						{
 							grad = ComputeGradient(x[i],dataStep,h2);
 							float gradl = length(grad);
@@ -328,6 +348,7 @@
 					 
 				}
 				if (samplesCount>0) return clamp(ao/float(samplesCount),0,1);
+				//if (samplesCount>0) return clamp(ao,0,1);
 				return 0;
 		}
 		
@@ -432,6 +453,196 @@
 			
 			ENDCG
 		}
+		//third pass
+		Pass
+		{
+			ZTest On
+			ZWrite On
+			
+			CGPROGRAM
+			
+			#pragma vertex vert_img
+            #pragma fragment frag
+            
+			#include "UnityCG.cginc"
+
+			sampler2D _InputTex;
+			sampler2D _DepthTex;
+			
+			sampler2D _MainTex;
+			sampler2D col0;
+			sampler2D col1;			
+			
+			static float IaoCap = 0.99f;
+			static float IaoMultiplier=100.0f;
+			static float IdepthTolerance=0.001;
+			static float Iaorange = 1000.0;// units in space the AO effect extends to (this gets divided by the camera far range
+			static float IaoScale = 0.5;
+
+			float readDepth( in float2 coord ) 
+			{
+				//float depthValue = Linear01Depth(tex2D (_InputTex, coord).w);
+				//float depthValue = tex2D (_InputTex, coord).w/10.0;
+				float depthValue = DECODE_EYEDEPTH(tex2D (col0, coord).w)/1.0;
+				return depthValue;
+				
+//				float n = 0.3; // camera z near
+//				float f = 1000.0; // camera z far
+//				float z = texture2D( texture0, coord ).x;
+//				return (2.0 * n) / (f + n - z * (f - n));	
+			}
+
+
+			float compareDepths( in float depth2, in float depth1 )
+			{
+			  	float ao=0.0;
+				//float diff = sqrt( clamp( 1.0-(depth1-depth2) / (Iaorange/(camerarange.y-camerarange.x) ),0.0,1.0) );
+				if (depth2>0.0 && depth1>0.0) 
+			  	{
+					//float diff = sqrt( clamp( 1.0-(depth1-depth2),0.0,1.0) );
+					float diff = sqrt( clamp( (depth1-depth2),0.0,1.0) );
+					//if (diff<0.2)
+					ao = min(IaoCap,max(0.0,depth1-depth2-IdepthTolerance) * IaoMultiplier) * min(diff,0.1);
+					//ao = min(IaoCap, 0.0) * 0.1;
+					//ao=0.0;
+				}
+				return ao;
+			}					
+
+			float4 frag (v2f_img i) : COLOR0
+			{
+				//float depthValue = Linear01Depth(tex2D (_DepthTex, i.uv).r);
+				//float depthValue = Linear01Depth(tex2D (_InputTex, i.uv).r);
+				
+				//return tex2D(_DepthTex, i.uv);
+				
+				//float4 clr = tex2D (_InputTex, i.uv);
+				float4 b = tex2D (col1, i.uv);
+				if (b.w<1)
+					discard;
+				float2 texCoord = i.uv;
+				
+				//if (clr.w==0.0) return float4(1,1,1,0);
+				float depth = readDepth(texCoord);
+				
+//				return float4(depth,depth,depth,1.0);
+//				if (depth==0) discard;
+				
+				float d;
+				float pw = 5.0 / _ScreenParams.x;
+				float ph = 5.0 / _ScreenParams.y;
+
+				float aoCap = IaoCap;
+
+				float ao = 0.0;
+				
+				//float aoMultiplier=10000.0;
+				float aoMultiplier= IaoMultiplier;
+				float depthTolerance = IdepthTolerance;
+				float aoscale= IaoScale;
+
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+			    
+				d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;    
+				
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+				d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;    
+			    
+
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				
+			  	d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale; 
+			    
+				pw*=2.0;
+				ph*=2.0;
+				aoMultiplier/=2.0;
+				aoscale*=1.2;
+				
+				d=readDepth( float2(texCoord.x+pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x+pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+			    
+			    d=readDepth( float2(texCoord.x+pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x-pw,texCoord.y));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y+ph));
+				ao+=compareDepths(depth,d)/aoscale;
+				d=readDepth( float2(texCoord.x,texCoord.y-ph));
+				ao+=compareDepths(depth,d)/aoscale;
+
+				// ao/=4.0;
+			    ao/=8.0;
+			    ao = 1.0-ao;
+			    //ao = 1.5*ao;
+
+			    ao = clamp( ao, 0.0, 1.0 );
+			    //return ao*float4(1.0,1.0,1.0,1.0);
+				return float4(ao,ao,ao,1);
+			}
+			
+			
+			ENDCG
+		}	
 
 	
 }

@@ -9,8 +9,9 @@ public class MolScript : MonoBehaviour
 	public int molCount = 1000;
 	public Vector3 aoGradParam = new Vector3(3.0f,8.0f,2.0f); //scale of t, scale * distance between levels, not assigned yet
 	public Vector3 aoFuncParam = new Vector3(1.0f,8.0f,1.0f); //scale of ao, func 1, func 2
-	public Vector3 aoShadowParam = new Vector3 (0.0f, 0.0f, 0.0f); //shadow strength, ...
+	public Vector3 aoShadowParam = new Vector3 (0.0f, 1.0f, 0.0f); //shadow strength, ...
 	public int aoSamplesCount = 1; //number of samples x 10
+	public int aoSSAO = 0;
 	//public Shader shader;
 	//public Shader shaderMC;
 	public Shader shaderTriangles;
@@ -472,7 +473,10 @@ public class MolScript : MonoBehaviour
 		matTriangles.SetVector("aoFuncParam",aoFuncParam);
 		matTriangles.SetVector("aoShadowParam",aoShadowParam);
 		matTriangles.SetInt("aoSamplesCount",aoSamplesCount);
-		Graphics.Blit (source, destination, matTriangles, 1);
+		//Graphics.Blit (source, destination, matTriangles, 1);
+		int shaderPass = 1;
+		if (aoSSAO == 1) shaderPass = 2;
+		Graphics.Blit (source, destination, matTriangles, shaderPass);
 //		matMC.SetBuffer ("r_HeadBuffer", headBuffer);
 //		matMC.SetBuffer ("r_GlobalData", globalDataBuffer);
 //		Graphics.Blit (source, destination, matMC, 1);
