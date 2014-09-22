@@ -219,20 +219,20 @@
 						  				 float3 gf, 	//gradient at the sample
 						  				 float f)		//function value at the sample
 		{
-//			float _obscurence =  exp(-5.0f*dist);
-//			float cosR = 1.0;
-//			float cosRD = dot(gf,normal);
-//			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
-//			_obscurence = aoFuncParam.x*(cosR*_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
-			
-			float _obscurence =  exp(-10.0f*dist);
-			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
-			//_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
-			//_obscurence = aoFuncParam.x/(1.0f+exp(-aoFuncParam.y*f-_obscurence-aoFuncParam.z));
+			float _obscurence =  exp(-5.0f*dist);
 			float cosR = 1.0;
 			float cosRD = dot(gf,normal);
 			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
-			_obscurence = clamp(cosR*aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
+			_obscurence = aoFuncParam.x*(cosR*_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			
+			//float _obscurence =  exp(-10.0f*dist);
+			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
+			//_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			//_obscurence = aoFuncParam.x/(1.0f+exp(-aoFuncParam.y*f-_obscurence-aoFuncParam.z));
+//			float cosR = 1.0;
+//			float cosRD = dot(gf,normal);
+//			cosR = 1.0f/(1.0f+exp(aoGradParam.y*cosRD-aoGradParam.z));
+//			_obscurence = clamp(cosR*aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
 			return _obscurence;
 		}
 		
@@ -241,9 +241,9 @@
 		{
 			float _obscurence =  exp(-10.0f*dist);
 			//_obscurence = (_obscurence)/(1.0f+exp(-8.0*f-1.0));
-			//_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
+			_obscurence = aoFuncParam.x*(_obscurence)/(1.0f+exp(-aoFuncParam.y*f-aoFuncParam.z));
 			//_obscurence = aoFuncParam.x/(1.0f+exp(-aoFuncParam.y*f-_obscurence-aoFuncParam.z));
-			_obscurence = clamp(aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
+			//_obscurence = clamp(aoFuncParam.x*(aoFuncParam.y*f-_obscurence),0,1);
 			return _obscurence;
 		}
 		
@@ -285,42 +285,40 @@
 				float3 sdir=normal;
 				
 				
-//				for (i=0;i<aoSamplesCount;i++)
-//				{
-//						int j=10*i;
-//						float fi=2.0f*(float)i+1.0f;
-//						float fj=2.0f*(float)i+2.0f;
-//						x[j+0] = p - fi*t*sdir;
-//						x[j+1] = x[j]+fi*axsc*xaxisR;
-//						x[j+2] = x[j]-fi*axsc*xaxisR;
-//						x[j+3] = x[j]-fi*axsc*yaxisR;
-//						x[j+4] = x[j]+fi*axsc*yaxisR;
-//						x[j+5] = p - fj*t*sdir;
-//						//x[j+5] = p - fi*t*sdir;
-//						x[j+6] = x[j+5]+fj*axsc*xaxis;
-//						x[j+7] = x[j+5]-fj*axsc*xaxis;
-//						x[j+8] = x[j+5]-fj*axsc*yaxis;
-//						x[j+9] = x[j+5]+fj*axsc*yaxis;
-//						t*=1.5;
-//						
-//
-//				}
-				
 				for (i=0;i<aoSamplesCount;i++)
 				{
 						int j=10*i;
-						float fi=10.0f*(float)i+1.0f;
+						float fi=2.0f*(float)i+1.0f;
+						float fj=2.0f*(float)i+2.0f;
 						x[j+0] = p - fi*t*sdir;
-						x[j+1] = x[j+0] - t*sdir;
-						x[j+2] = x[j+1] - t*sdir;
-						x[j+3] = x[j+2] - t*sdir;
-						x[j+4] = x[j+3] - t*sdir;
-						x[j+5] = x[j+4] - t*sdir;
-						x[j+6] = x[j+5] - t*sdir;
-						x[j+7] = x[j+6] - t*sdir;
-						x[j+8] = x[j+7] - t*sdir;
-						x[j+9] = x[j+8] - t*sdir;
+						x[j+1] = x[j]+fi*axsc*xaxisR;
+						x[j+2] = x[j]-fi*axsc*xaxisR;
+						x[j+3] = x[j]-fi*axsc*yaxisR;
+						x[j+4] = x[j]+fi*axsc*yaxisR;
+						x[j+5] = p - fj*t*sdir;
+						//x[j+5] = p - fi*t*sdir;
+						x[j+6] = x[j+5]+fj*axsc*xaxis;
+						x[j+7] = x[j+5]-fj*axsc*xaxis;
+						x[j+8] = x[j+5]-fj*axsc*yaxis;
+						x[j+9] = x[j+5]+fj*axsc*yaxis;
+						t*=1.5;
 				}
+				
+//				for (i=0;i<aoSamplesCount;i++)
+//				{
+//						int j=10*i;
+//						float fi=10.0f*(float)i+1.0f;
+//						x[j+0] = p - fi*t*sdir;
+//						x[j+1] = x[j+0] - t*sdir;
+//						x[j+2] = x[j+1] - t*sdir;
+//						x[j+3] = x[j+2] - t*sdir;
+//						x[j+4] = x[j+3] - t*sdir;
+//						x[j+5] = x[j+4] - t*sdir;
+//						x[j+6] = x[j+5] - t*sdir;
+//						x[j+7] = x[j+6] - t*sdir;
+//						x[j+8] = x[j+7] - t*sdir;
+//						x[j+9] = x[j+8] - t*sdir;
+//				}
 				
 				for (i=0;i<10*aoSamplesCount;i++)
 				{

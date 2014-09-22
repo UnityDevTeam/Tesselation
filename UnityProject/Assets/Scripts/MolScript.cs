@@ -7,10 +7,10 @@ using System.Collections.Generic;
 public class MolScript : MonoBehaviour
 {
 	public int molCount = 1000;
-	public Vector3 aoGradParam = new Vector3(3.0f,8.0f,2.0f); //scale of t, scale * distance between levels, not assigned yet
-	public Vector3 aoFuncParam = new Vector3(1.0f,8.0f,1.0f); //scale of ao, func 1, func 2
-	public Vector3 aoShadowParam = new Vector3 (0.0f, 1.0f, 0.0f); //shadow strength, ...
-	public int aoSamplesCount = 1; //number of samples x 10
+	public Vector3 aoGradParam = new Vector3(0.5f,7.5f,0.0f); //scale of t, scale * distance between levels, not assigned yet
+	public Vector3 aoFuncParam = new Vector3(1.0f,4.0f,5.0f); //scale of ao, func 1, func 2
+	public Vector3 aoShadowParam = new Vector3 (0.0f, 8.0f, 0.0f); //shadow strength, ...
+	public int aoSamplesCount = 5; //number of samples x 10
 	public int aoSSAO = 0;
 	//public Shader shader;
 	//public Shader shaderMC;
