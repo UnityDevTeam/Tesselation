@@ -372,6 +372,8 @@
 					float xpl = length(x[i]-p);
 					float f = SampleData3(x[i]).x-0.5;
 					//if (f>fmin)
+					bool inside_grid = x[i].x>0.9999f || x[i].x<0.0f || x[i].z>0.9999f || x[i].z<0.0f || x[i].z>0.9999f || x[i].z<0.0f;
+					if (inside_grid)
 					{
 						//float3 xpv = normalize(p-x[i]);
 						float3 grad;
