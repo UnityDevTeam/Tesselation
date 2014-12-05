@@ -450,7 +450,7 @@ public class MolScript : MonoBehaviour
 			matTriangles.SetBuffer ("triangles", this.triangleOutput);
 			matTriangles.SetPass(0);
 			Graphics.DrawProceduralIndirect(MeshTopology.Triangles, cbDrawArgs);
-			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 207000);
+			//Graphics.DrawProcedural(MeshTopology.Triangles, 3, 407000);
 			Graphics.ClearRandomWriteTargets ();
 		}
 //		ComputeBuffer.CopyCount (triangleOutput, cbDrawArgs, 0); 

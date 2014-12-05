@@ -5,6 +5,7 @@ StructuredBuffer<float4> molPositions;
 float3 dx;
 float3 minBox;
 int atomCount;
+int numParticles;
 
 
 
@@ -63,6 +64,7 @@ RWStructuredBuffer<unsigned int> gridParticleIndex: register( u1 );
 RWStructuredBuffer<float4> sortedPos: register( u2 );
 RWStructuredBuffer<unsigned int> cellEnd: register( u3 );
 RWStructuredBuffer<unsigned int> cellStart: register( u4 );
+RWStructuredBuffer<float4> oldPos: register( u5 );
 
 
 // Calculate position in uniform grid
@@ -103,15 +105,18 @@ void CalcHash(uint3 id : SV_DispatchThreadID)
 }
 
 
-__global__ void reorderDataAndFindCellStartSimpleD(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
+groupshared unsigned int sharedHash[Blocksize];
+[numthreads(BlockSize, 8, 8)]
+void reorderDataAndFindCellStartSimpleD(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
 {
-    extern __shared__ uint sharedHash[];    // blockSize + 1 elements
-    uint index = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
+//    extern __shared__ uint sharedHash[];    // blockSize + 1 elements
+//    uint index = __umul24(blockIdx.x,blockDim.x) + threadIdx.x;
+	uint index = DTid.x;
 
     uint hash;
 
     // handle case when no. of particles not multiple of block size
-    if (index < atomCount)
+    if (index < numParticles)
 	{
         hash = gridParticleHash[index];
 
@@ -127,7 +132,8 @@ __global__ void reorderDataAndFindCellStartSimpleD(uint3 Gid : SV_GroupID, uint3
         }
     }
 
-    __syncthreads();
+//    __syncthreads();
+	GroupMemoryBarrierWithGroupSync();
 
     if (index < numParticles)
     {
@@ -152,10 +158,49 @@ __global__ void reorderDataAndFindCellStartSimpleD(uint3 Gid : SV_GroupID, uint3
 
         // Now use the sorted index to reorder the pos and vel data
         uint sortedIndex = gridParticleIndex[index];
-        float4 pos = FETCH(oldPos, sortedIndex);       // macro does either global read or texture fetch
+        float4 pos = oldPos[sortedIndex];
 
         sortedPos[index] = pos;
     }
+}
+
+void sortParticles(uint3 Gid : SV_GroupID, uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint GI : SV_GroupIndex)
+{
+
+}
+
+//--------------------------------------------------------------------------------------
+// Structured Buffers
+//--------------------------------------------------------------------------------------
+StructuredBuffer<unsigned int> Input : register( t0 );
+RWStructuredBuffer<unsigned int> Data : register( u0 );
+uint *dGridParticleHash, uint *dGridParticleIndex, uint numParticles
+//--------------------------------------------------------------------------------------
+// Bitonic Sort Compute Shader
+//--------------------------------------------------------------------------------------
+groupshared unsigned int shared_data[BITONIC_BLOCK_SIZE];
+
+[numthreads(BITONIC_BLOCK_SIZE, 1, 1)]
+void BitonicSort( uint3 Gid : SV_GroupID, 
+                  uint3 DTid : SV_DispatchThreadID, 
+                  uint3 GTid : SV_GroupThreadID, 
+                  uint GI : SV_GroupIndex )
+{
+    // Load shared data
+    shared_data[GI] = Data[DTid.x];
+    GroupMemoryBarrierWithGroupSync();
+    
+    // Sort the shared data
+    for (unsigned int j = g_iLevel >> 1 ; j > 0 ; j >>= 1)
+    {
+        unsigned int result = ((shared_data[GI & ~j] <= shared_data[GI | j]) == (bool)(g_iLevelMask & DTid.x))? shared_data[GI ^ j] : shared_data[GI];
+        GroupMemoryBarrierWithGroupSync();
+        shared_data[GI] = result;
+        GroupMemoryBarrierWithGroupSync();
+    }
+    
+    // Store shared data
+    Data[DTid.x] = shared_data[GI];
 }
 /*
 int3 getVoxel(in float3 p)
